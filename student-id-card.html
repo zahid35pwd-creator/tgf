@@ -16,7 +16,9 @@
   .id-block { position: absolute; right: 15px; top: 105px; text-align: right; }
   .id-label { font-size: 9px; color: #333; }
   .id-number { font-size: 16px; font-weight: bold; color: #104935; font-family: 'Arial Black', sans-serif; letter-spacing: 0.5px; }
-  .student-badge { background: #104935; color: white; font-weight: bold; font-size: 13px; padding: 3px 8px; margin-top: 2px; display: inline-block; letter-spacing: 1px; }
+  .student-badge { position: relative; background: #104935; color: white; font-family: 'Times New Roman', Times, serif; font-weight: bold; font-size: 13px; padding: 3px 18px 3px 8px; margin-top: 2px; margin-bottom: 6px; display: inline-block; letter-spacing: 0.5px; }
+  .student-badge::before { content: ''; position: absolute; top: 0; right: 0; width: 6px; height: 6px; background: #fff; }
+  .student-badge::after { content: ''; position: absolute; bottom: -6px; right: 5px; width: 6px; height: 6px; background: #104935; }
   .front-footer { position: absolute; bottom: 8px; left: 15px; display: flex; align-items: center; gap: 10px; }
   .blue-box { width: 25px; height: 18px; background: #0055ff; }
   .signature-block { font-size: 11px; font-weight: bold; }
