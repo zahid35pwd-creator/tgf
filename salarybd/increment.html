@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="bn" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ইনক্রিমেন্ট ক্যালকুলেটর · বেতন হিসাব</title>
+<meta name="description" content="বার্ষিক ৫% ইনক্রিমেন্টে আগামী বছরগুলোতে মূল বেতন কত হবে।">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f6b4f'/><text x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='monospace'>৳</text></svg>">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="brand" href="index.html">
+      <span class="mark">৳</span>
+      <span>বেতন হিসাব<small>SALARY BD · প্রোটোটাইপ</small></span>
+    </a>
+    <button class="icon-btn nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="মেনু">☰</button>
+    <nav class="nav" id="nav">
+      <a href="index.html">হোম</a>
+      <a href="calculator.html">বেতন ক্যালকুলেটর</a>
+      <a href="payscale.html">বেতন স্কেল</a>
+      <a href="increment.html">ইনক্রিমেন্ট</a>
+      <a href="pension.html">পেনশন</a>
+      <a href="about.html">পরিচিতি</a>
+      <button class="icon-btn" id="themeToggle" title="থিম বদলান" aria-label="থিম বদলান" style="width:auto;padding:0 12px;font-size:.85rem;font-weight:700">থিম</button>
+    </nav>
+  </div>
+</header>
+<main>
+<div class="hero" style="padding:30px 0 24px">
+  <div class="wrap">
+    <span class="eyebrow">● বার্ষিক ৫%</span>
+    <h1>ইনক্রিমেন্ট ক্যালকুলেটর</h1>
+    <p class="lede">প্রতি বছর ১ জুলাই মূল বেতনের ৫% হারে বার্ষিক ইনক্রিমেন্ট যোগ হয়। গ্রেডের সর্বোচ্চ সীমায় পৌঁছে গেলে ইনক্রিমেন্ট আর যোগ হয় না।</p>
+  </div>
+</div>
+<section>
+  <div class="wrap calc-layout">
+    <form class="card card-pad no-print" id="incrementForm" autocomplete="off">
+      <fieldset>
+        <legend>বর্তমান অবস্থা</legend>
+        <div class="field">
+          <label for="incGrade">গ্রেড</label>
+          <select id="incGrade"></select>
+        </div>
+        <div class="field" id="incStepWrap">
+          <label for="incStep">বর্তমান ধাপ</label>
+          <select id="incStep"></select>
+        </div>
+        <div class="check">
+          <input type="checkbox" id="incManual">
+          <label for="incManual" style="margin:0">ধাপের বদলে নিজে মূল বেতন লিখব</label>
+        </div>
+        <div class="field" id="incBasicWrap" style="display:none">
+          <label for="incBasic">বর্তমান মূল বেতন (টাকা)</label>
+          <input type="number" id="incBasic" value="22000" min="0" step="10">
+        </div>
+        <div class="field">
+          <label for="incYears">কত বছরের প্রক্ষেপণ</label>
+          <input type="number" id="incYears" value="10" min="1" max="25" step="1">
+          <div class="hint">সর্বোচ্চ ২৫ বছর পর্যন্ত।</div>
+        </div>
+      </fieldset>
+      <button type="submit" class="btn btn-primary btn-block">প্রক্ষেপণ দেখুন</button>
+    </form>
+
+    <div>
+      <div class="grid grid-3">
+        <div class="stat"><div class="k">বর্তমান মূল বেতন</div><div class="v" id="incNow">—</div></div>
+        <div class="stat"><div class="k">প্রক্ষেপিত মূল বেতন</div><div class="v" id="incFuture">—</div></div>
+        <div class="stat"><div class="k">মোট বৃদ্ধি</div><div class="v" id="incTotal">—</div></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <table>
+          <thead><tr><th>সময়</th><th>ইনক্রিমেন্ট</th><th>মূল বেতন</th></tr></thead>
+          <tbody id="incBody"></tbody>
+        </table>
+      </div>
+      <div class="notice" id="incCapNote" style="margin-top:16px;display:none">
+        <strong>সর্বোচ্চ সীমা:</strong> এই গ্রেডের সর্বোচ্চ মূল বেতনে পৌঁছে গেছে, এরপর আর বার্ষিক ইনক্রিমেন্ট যোগ হবে না। পদোন্নতি বা টাইমস্কেল ছাড়া মূল বেতন আর বাড়বে না।
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="site-foot">
+  <div class="wrap foot-grid">
+    <div>
+      <h4>বেতন হিসাব</h4>
+      <p>সরকারি চাকরিজীবীদের মাসিক বেতন, ভাতা, কর্তন, ইনক্রিমেন্ট ও পেনশন হিসাবের একটি খোলা প্রোটোটাইপ। সব হিসাব আপনার ব্রাউজারেই হয় — কোনো তথ্য সার্ভারে পাঠানো হয় না।</p>
+    </div>
+    <div>
+      <h4>ক্যালকুলেটর</h4>
+      <ul>
+        <li><a href="calculator.html">বেতন ক্যালকুলেটর</a></li>
+        <li><a href="increment.html">ইনক্রিমেন্ট ক্যালকুলেটর</a></li>
+        <li><a href="pension.html">পেনশন ক্যালকুলেটর</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>তথ্য</h4>
+      <ul>
+        <li><a href="payscale.html">বেতন স্কেল টেবিল</a></li>
+        <li><a href="about.html">পরিচিতি ও দাবিত্যাগ</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:20px;font-size:.82rem">
+    © <span class="num">২০২৬</span> বেতন হিসাব · শিক্ষামূলক প্রোটোটাইপ, কোনো সরকারি ওয়েবসাইট নয়।
+  </div>
+</footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/calc.js"></script>
+<script src="assets/js/ui.js"></script>
+</body>
+</html>
