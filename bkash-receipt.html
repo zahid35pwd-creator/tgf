@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>bKash Receipt</title>
+<style>
+  body {
+    background-color: #f0f0f0;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+  .receipt-container {
+    background-color: white;
+    width: 450px;
+    padding: 20px 30px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    color: #000;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+  .logo-left {
+    color: #b71c1c;
+    font-size: 40px;
+    line-height: 1;
+  }
+  .logo-right {
+    display: flex;
+    align-items: center;
+    font-size: 28px;
+  }
+  .bkash-text {
+    font-weight: normal;
+  }
+  .bkash-b {
+    color: #e2136e;
+  }
+  .bkash-bird {
+    width: 0;
+    height: 0;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-bottom: 30px solid #e2136e;
+    transform: rotate(45deg);
+    margin-left: 5px;
+  }
+  .title {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+  .divider {
+    border-top: 1px dashed #000;
+    margin: 15px 0;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  .info-row {
+    display: flex;
+    font-size: 15px;
+    font-weight: bold;
+    margin-bottom: 12px;
+  }
+  .info-label {
+    width: 50%;
+    border-right: 1px dashed #000;
+    padding-right: 10px;
+    box-sizing: border-box;
+  }
+  .info-value {
+    width: 50%;
+    text-align: right;
+    padding-left: 10px;
+    box-sizing: border-box;
+  }
+  .stamp-container {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+  }
+  .stamp {
+    width: 70px;
+    height: 70px;
+    border: 3px dashed #000;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(-15deg);
+    font-weight: 900;
+    font-size: 18px;
+  }
+  .stamp-tiny {
+    font-size: 8px;
+    font-weight: bold;
+  }
+  .footer-text {
+    text-align: center;
+    font-size: 15px;
+    font-weight: bold;
+    line-height: 1.3;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="receipt-container">
+  <!-- Header Logos -->
+  <div class="header">
+    <div class="logo-left">⚙️</div>
+    <div class="logo-right">
+      <div class="bkash-text"><span class="bkash-b">b</span>Kash</div>
+      <div class="bkash-bird"></div>
+    </div>
+  </div>
+
+  <!-- Title -->
+  <div class="title">RECEIPT</div>
+  <div class="divider"></div>
+
+  <!-- Bill Information -->
+  <div class="section-title">Bill Information</div>
+  <div class="divider"></div>
+
+  <div class="info-row">
+    <div class="info-label">Organization Name</div>
+    <div class="info-value">BUET Admission</div>
+  </div>
+  <div class="info-row">
+    <div class="info-label">Bill Month</div>
+    <div class="info-value">AD</div>
+  </div>
+  <div class="info-row">
+    <div class="info-label">Application Id</div>
+    <div class="info-value">0401014</div>
+  </div>
+  <div class="info-row">
+    <div class="info-label">Bill Amount</div>
+    <div class="info-value">BDT 505.0</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Payment Information -->
+  <div class="section-title">Payment Information</div>
+  <div class="divider"></div>
+
+  <div class="info-row">
+    <div class="info-label">bKash Account</div>
+    <div class="info-value">01557759666</div>
+  </div>
+  <div class="info-row">
+    <div class="info-label">Payment Date</div>
+    <div class="info-value">22 August, 2024</div>
+  </div>
+  <div class="info-row">
+    <div class="info-label">Transaction ID</div>
+    <div class="info-value">BHM1W5V7YH</div>
+  </div>
+  <div class="info-row">
+    <div class="info-label">Paid to<br>Organization</div>
+    <div class="info-value"><br>BDT 505.0</div>
+  </div>
+  <div class="info-row">
+    <div class="info-label">bKash Fee</div>
+    <div class="info-value">0.0</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="info-row">
+    <div class="info-label">Payment Received</div>
+    <div class="info-value">505.00</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Stamp and Footer -->
+  <div class="stamp-container">
+    <div class="stamp">
+      <span class="stamp-tiny">THANK YOU</span>
+      PAID
+      <span class="stamp-tiny">THANK YOU</span>
+    </div>
+  </div>
+
+  <div class="footer-text">
+    This receipt has been generated<br>
+    electronically
+  </div>
+
+</div>
+
+</body>
+</html>
