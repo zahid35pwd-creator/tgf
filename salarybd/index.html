@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="bn" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>হোম · বেতন হিসাব</title>
+<meta name="description" content="সরকারি চাকরিজীবীদের বেতন, ভাতা, ইনক্রিমেন্ট ও পেনশন হিসাবের ক্যালকুলেটর।">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f6b4f'/><text x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='monospace'>৳</text></svg>">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="brand" href="index.html">
+      <span class="mark">৳</span>
+      <span>বেতন হিসাব<small>SALARY BD · প্রোটোটাইপ</small></span>
+    </a>
+    <button class="icon-btn nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="মেনু">☰</button>
+    <nav class="nav" id="nav">
+      <a href="index.html">হোম</a>
+      <a href="calculator.html">বেতন ক্যালকুলেটর</a>
+      <a href="payscale.html">বেতন স্কেল</a>
+      <a href="increment.html">ইনক্রিমেন্ট</a>
+      <a href="pension.html">পেনশন</a>
+      <a href="about.html">পরিচিতি</a>
+      <button class="icon-btn" id="themeToggle" title="থিম বদলান" aria-label="থিম বদলান" style="width:auto;padding:0 12px;font-size:.85rem;font-weight:700">থিম</button>
+    </nav>
+  </div>
+</header>
+<main>
+<div class="hero">
+  <div class="wrap">
+    <span class="eyebrow">● জাতীয় বেতন স্কেল ভিত্তিক</span>
+    <h1>নিজের বেতন নিজেই হিসাব করুন</h1>
+    <p class="lede">গ্রেড আর ধাপ বেছে নিন — মূল বেতন, বাড়ি ভাড়া, চিকিৎসা ও অন্যান্য ভাতা, জিপিএফ, আয়কর ও সব কর্তন বাদ দিয়ে হাতে পাওয়া নিট বেতন সাথে সাথেই দেখতে পাবেন। উৎসব ভাতা, বার্ষিক ইনক্রিমেন্ট ও অবসরের পেনশনের হিসাবও এক জায়গায়।</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="calculator.html">বেতন হিসাব শুরু করুন →</a>
+      <a class="btn btn-ghost" href="payscale.html">পূর্ণ বেতন স্কেল দেখুন</a>
+    </div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>কী কী হিসাব করতে পারবেন</h2>
+    <div class="grid grid-3" style="margin-top:18px">
+      <a class="feature" href="calculator.html">
+        <div class="ico">৳</div>
+        <h3>মাসিক বেতন বিবরণী</h3>
+        <p>গ্রেড, ধাপ ও কর্মস্থল অনুযায়ী মূল বেতন, সব ভাতা ও কর্তনের পূর্ণ তালিকা এবং নিট প্রাপ্য।</p>
+      </a>
+      <a class="feature" href="payscale.html">
+        <div class="ico">▤</div>
+        <h3>বেতন স্কেল টেবিল</h3>
+        <p>১ থেকে ২০ নং গ্রেড পর্যন্ত প্রতিটি ধাপের মূল বেতন এক টেবিলে।</p>
+      </a>
+      <a class="feature" href="increment.html">
+        <div class="ico">↗</div>
+        <h3>ইনক্রিমেন্ট প্রক্ষেপণ</h3>
+        <p>বছরে ৫% হারে বার্ষিক ইনক্রিমেন্টে আগামী কয়েক বছরে মূল বেতন কোথায় দাঁড়াবে।</p>
+      </a>
+      <a class="feature" href="pension.html">
+        <div class="ico">☂</div>
+        <h3>পেনশন ও গ্র্যাচুইটি</h3>
+        <p>চাকরিকাল অনুযায়ী পেনশনের হার, সমর্পণের পর এককালীন আনুতোষিক ও মাসিক পেনশন।</p>
+      </a>
+      <a class="feature" href="calculator.html#tax">
+        <div class="ico">%</div>
+        <h3>আয়কর হিসাব</h3>
+        <p>বেতন খাতের অব্যাহতি বাদ দিয়ে স্ল্যাব অনুযায়ী বার্ষিক কর ও মাসিক কিস্তি।</p>
+      </a>
+      <a class="feature" href="calculator.html#bonus">
+        <div class="ico">★</div>
+        <h3>উৎসব ও বৈশাখী ভাতা</h3>
+        <p>মূল বেতনের ভিত্তিতে বছরে প্রাপ্য বোনাসের পরিমাণ।</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="card card-pad">
+      <h2>কীভাবে কাজ করে</h2>
+      <div class="grid grid-3" style="margin-top:14px">
+        <div class="stat"><div class="k">ধাপ ১</div><div class="v" style="font-size:1rem">গ্রেড ও ধাপ নির্বাচন</div></div>
+        <div class="stat"><div class="k">ধাপ ২</div><div class="v" style="font-size:1rem">কর্মস্থল ও ভাতা-কর্তন</div></div>
+        <div class="stat"><div class="k">ধাপ ৩</div><div class="v" style="font-size:1rem">নিট বেতন ও বিবরণী</div></div>
+      </div>
+      <p style="margin-top:18px;color:var(--ink-2)">কোনো নিবন্ধন লাগে না, কোনো তথ্য সংরক্ষণ করা হয় না। হিসাব সম্পূর্ণ আপনার ব্রাউজারেই সম্পন্ন হয় এবং ফলাফল সরাসরি প্রিন্ট বা পিডিএফ করে রাখতে পারবেন।</p>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="notice">
+      <strong>দাবিত্যাগ:</strong> এটি একটি শিক্ষামূলক প্রোটোটাইপ। হিসাবের হারগুলো সংশ্লিষ্ট প্রজ্ঞাপন অনুযায়ী পরিবর্তিত হতে পারে। চূড়ান্ত হিসাবের জন্য নিজ দপ্তরের হিসাবরক্ষণ কর্মকর্তার সাথে যোগাযোগ করুন। বিস্তারিত <a href="about.html">পরিচিতি</a> পাতায়।
+    </div>
+  </div>
+</section>
+</main>
+<footer class="site-foot">
+  <div class="wrap foot-grid">
+    <div>
+      <h4>বেতন হিসাব</h4>
+      <p>সরকারি চাকরিজীবীদের মাসিক বেতন, ভাতা, কর্তন, ইনক্রিমেন্ট ও পেনশন হিসাবের একটি খোলা প্রোটোটাইপ। সব হিসাব আপনার ব্রাউজারেই হয় — কোনো তথ্য সার্ভারে পাঠানো হয় না।</p>
+    </div>
+    <div>
+      <h4>ক্যালকুলেটর</h4>
+      <ul>
+        <li><a href="calculator.html">বেতন ক্যালকুলেটর</a></li>
+        <li><a href="increment.html">ইনক্রিমেন্ট ক্যালকুলেটর</a></li>
+        <li><a href="pension.html">পেনশন ক্যালকুলেটর</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>তথ্য</h4>
+      <ul>
+        <li><a href="payscale.html">বেতন স্কেল টেবিল</a></li>
+        <li><a href="about.html">পরিচিতি ও দাবিত্যাগ</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:20px;font-size:.82rem">
+    © <span class="num">২০২৬</span> বেতন হিসাব · শিক্ষামূলক প্রোটোটাইপ, কোনো সরকারি ওয়েবসাইট নয়।
+  </div>
+</footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/calc.js"></script>
+<script src="assets/js/ui.js"></script>
+</body>
+</html>
