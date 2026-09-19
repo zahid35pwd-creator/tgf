@@ -29,6 +29,12 @@
       toggle.setAttribute('aria-expanded', String(open));
     });
 
+    /* মেনুর কোনো লিঙ্কে ক্লিক করলেই মোবাইল মেনু বন্ধ হবে */
+    $$('.nav a').forEach(a => a.addEventListener('click', () => {
+      if (nav) nav.classList.remove('open');
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    }));
+
     const saved = (function () { try { return localStorage.getItem('sbd-theme'); } catch (e) { return null; } })();
     if (saved) document.documentElement.setAttribute('data-theme', saved);
     const tb = $('#themeToggle');
