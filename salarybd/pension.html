@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="bn" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>পেনশন ক্যালকুলেটর · বেতন হিসাব</title>
+<meta name="description" content="চাকরিকাল ও সর্বশেষ মূল বেতন অনুযায়ী পেনশন, আনুতোষিক ও মাসিক প্রাপ্য।">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f6b4f'/><text x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='monospace'>৳</text></svg>">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="brand" href="index.html">
+      <span class="mark">৳</span>
+      <span>বেতন হিসাব<small>SALARY BD · প্রোটোটাইপ</small></span>
+    </a>
+    <button class="icon-btn nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="মেনু">☰</button>
+    <nav class="nav" id="nav">
+      <a href="index.html">হোম</a>
+      <a href="calculator.html">বেতন ক্যালকুলেটর</a>
+      <a href="payscale.html">বেতন স্কেল</a>
+      <a href="increment.html">ইনক্রিমেন্ট</a>
+      <a href="pension.html">পেনশন</a>
+      <a href="about.html">পরিচিতি</a>
+      <button class="icon-btn" id="themeToggle" title="থিম বদলান" aria-label="থিম বদলান" style="width:auto;padding:0 12px;font-size:.85rem;font-weight:700">থিম</button>
+    </nav>
+  </div>
+</header>
+<main>
+<div class="hero" style="padding:30px 0 24px">
+  <div class="wrap">
+    <span class="eyebrow">● অবসর সুবিধা</span>
+    <h1>পেনশন ও গ্র্যাচুইটি ক্যালকুলেটর</h1>
+    <p class="lede">সর্বশেষ মূল বেতন ও মোট চাকরিকাল দিলে মোট পেনশন, সমর্পণের পর এককালীন আনুতোষিক এবং মাসিক নিট পেনশন হিসাব করা হবে।</p>
+  </div>
+</div>
+<section>
+  <div class="wrap calc-layout">
+    <form class="card card-pad no-print" id="pensionForm" autocomplete="off">
+      <fieldset>
+        <legend>অবসরকালীন তথ্য</legend>
+        <div class="field">
+          <label for="penBasic">সর্বশেষ মূল বেতন (টাকা)</label>
+          <input type="number" id="penBasic" value="53060" min="0" step="10">
+        </div>
+        <div class="field">
+          <label for="penYears">মোট চাকরিকাল (বছর)</label>
+          <input type="number" id="penYears" value="25" min="0" max="40" step="1">
+          <div class="hint">পেনশন পেতে কমপক্ষে ৫ বছর, পূর্ণ হারের জন্য ২৫ বছর চাকরি প্রয়োজন।</div>
+        </div>
+      </fieldset>
+      <button type="submit" class="btn btn-primary btn-block">পেনশন হিসাব করুন</button>
+    </form>
+
+    <div>
+      <div class="notice warn" id="penWarn" style="display:none"></div>
+      <div id="penResult">
+        <div class="card">
+          <div class="result-head">
+            <div class="label">মাসিক সর্বমোট প্রাপ্য</div>
+            <div class="big-num" id="penMonthly">৳ ০</div>
+            <div class="chips">
+              <span class="chip">পেনশনের হার <span id="penPercent"></span></span>
+              <span class="chip gold">আনুতোষিক <span id="penGratuity"></span></span>
+            </div>
+          </div>
+          <table><tbody id="penBody"></tbody></table>
+        </div>
+        <div class="notice" style="margin-top:16px">
+          <strong>হিসাবের ভিত্তি:</strong> মোট পেনশনের অর্ধেক সমর্পণ করে প্রতি ১ টাকার বিপরীতে ২৩০ টাকা হারে এককালীন আনুতোষিক এবং বাকি অর্ধেক মাসিক পেনশন হিসেবে ধরা হয়েছে। এর সাথে পেনশনারের মাসিক চিকিৎসা ভাতা যোগ করা হয়েছে।
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="site-foot">
+  <div class="wrap foot-grid">
+    <div>
+      <h4>বেতন হিসাব</h4>
+      <p>সরকারি চাকরিজীবীদের মাসিক বেতন, ভাতা, কর্তন, ইনক্রিমেন্ট ও পেনশন হিসাবের একটি খোলা প্রোটোটাইপ। সব হিসাব আপনার ব্রাউজারেই হয় — কোনো তথ্য সার্ভারে পাঠানো হয় না।</p>
+    </div>
+    <div>
+      <h4>ক্যালকুলেটর</h4>
+      <ul>
+        <li><a href="calculator.html">বেতন ক্যালকুলেটর</a></li>
+        <li><a href="increment.html">ইনক্রিমেন্ট ক্যালকুলেটর</a></li>
+        <li><a href="pension.html">পেনশন ক্যালকুলেটর</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>তথ্য</h4>
+      <ul>
+        <li><a href="payscale.html">বেতন স্কেল টেবিল</a></li>
+        <li><a href="about.html">পরিচিতি ও দাবিত্যাগ</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:20px;font-size:.82rem">
+    © <span class="num">২০২৬</span> বেতন হিসাব · শিক্ষামূলক প্রোটোটাইপ, কোনো সরকারি ওয়েবসাইট নয়।
+  </div>
+</footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/calc.js"></script>
+<script src="assets/js/ui.js"></script>
+</body>
+</html>

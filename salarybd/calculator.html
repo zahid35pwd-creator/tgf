@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="bn" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>বেতন ক্যালকুলেটর · বেতন হিসাব</title>
+<meta name="description" content="গ্রেড ও ধাপ অনুযায়ী মাসিক মূল বেতন, ভাতা, কর্তন ও নিট বেতনের পূর্ণ বিবরণী।">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f6b4f'/><text x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='monospace'>৳</text></svg>">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="brand" href="index.html">
+      <span class="mark">৳</span>
+      <span>বেতন হিসাব<small>SALARY BD · প্রোটোটাইপ</small></span>
+    </a>
+    <button class="icon-btn nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="মেনু">☰</button>
+    <nav class="nav" id="nav">
+      <a href="index.html">হোম</a>
+      <a href="calculator.html">বেতন ক্যালকুলেটর</a>
+      <a href="payscale.html">বেতন স্কেল</a>
+      <a href="increment.html">ইনক্রিমেন্ট</a>
+      <a href="pension.html">পেনশন</a>
+      <a href="about.html">পরিচিতি</a>
+      <button class="icon-btn" id="themeToggle" title="থিম বদলান" aria-label="থিম বদলান" style="width:auto;padding:0 12px;font-size:.85rem;font-weight:700">থিম</button>
+    </nav>
+  </div>
+</header>
+<main>
+<div class="hero" style="padding:30px 0 24px">
+  <div class="wrap">
+    <span class="eyebrow">● ধাপ অনুযায়ী পূর্ণ বিবরণী</span>
+    <h1>বেতন ক্যালকুলেটর</h1>
+    <p class="lede">বাঁ পাশের তথ্য বদলালেই ডান পাশের হিসাব সাথে সাথে হালনাগাদ হবে।</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap calc-layout">
+
+    <form class="card card-pad no-print" id="salaryForm" autocomplete="off">
+      <fieldset>
+        <legend>চাকরির তথ্য</legend>
+        <div class="field">
+          <label for="grade">গ্রেড</label>
+          <select id="grade"></select>
+        </div>
+        <div class="field" id="stepWrap">
+          <label for="step">বেতন ধাপ</label>
+          <select id="step"></select>
+          <div class="hint">যোগদানের পর প্রতি বছর ১ জুলাই একটি করে ধাপ বাড়ে।</div>
+        </div>
+        <div class="check">
+          <input type="checkbox" id="useManualBasic">
+          <label for="useManualBasic" style="margin:0">ধাপের বদলে নিজে মূল বেতন লিখব</label>
+        </div>
+        <div class="field" id="manualBasicWrap" style="display:none">
+          <label for="manualBasic">বর্তমান মূল বেতন (টাকা)</label>
+          <input type="number" id="manualBasic" value="22000" min="0" step="10">
+        </div>
+        <div class="field">
+          <label for="area">কর্মস্থল (বাড়ি ভাড়ার হার নির্ধারণে)</label>
+          <select id="area"></select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>ভাতা</legend>
+        <div class="field">
+          <label for="children">শিক্ষা সহায়ক ভাতা পাবে এমন সন্তান</label>
+          <input type="number" id="children" value="0" min="0" max="2" step="1">
+          <div class="hint">সর্বোচ্চ ২ সন্তান, প্রতি সন্তান ৫০০ টাকা।</div>
+        </div>
+        <div class="check"><input type="checkbox" id="tiffin"><label for="tiffin" style="margin:0">টিফিন ভাতা (২০০ টাকা)</label></div>
+        <div class="check"><input type="checkbox" id="conveyance"><label for="conveyance" style="margin:0">যাতায়াত ভাতা (৩০০ টাকা)</label></div>
+        <div class="check"><input type="checkbox" id="washing"><label for="washing" style="margin:0">ধোলাই ভাতা (১০০ টাকা)</label></div>
+        <div class="field">
+          <label for="otherAllowance">অন্যান্য ভাতা (টাকা)</label>
+          <input type="number" id="otherAllowance" value="0" min="0" step="10">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>কর্তন</legend>
+        <div class="field">
+          <label for="gpfRate">জিপিএফ চাঁদার হার</label>
+          <select id="gpfRate"></select>
+        </div>
+        <div class="check"><input type="checkbox" id="welfare" checked><label for="welfare" style="margin:0">কল্যাণ তহবিল (৫০ টাকা)</label></div>
+        <div class="check"><input type="checkbox" id="insurance" checked><label for="insurance" style="margin:0">যৌথবীমা (১০০ টাকা)</label></div>
+        <div class="field">
+          <label for="taxCategory">করদাতার শ্রেণি</label>
+          <select id="taxCategory">
+            <option value="">সাধারণ</option>
+            <option value="female">মহিলা / ৬৫+ বছর</option>
+            <option value="disabled">প্রতিবন্ধী করদাতা</option>
+            <option value="freedomFighter">গেজেটভুক্ত মুক্তিযোদ্ধা</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="otherDeduction">অন্যান্য কর্তন (টাকা)</label>
+          <input type="number" id="otherDeduction" value="0" min="0" step="10">
+        </div>
+      </fieldset>
+
+      <button type="submit" class="btn btn-primary btn-block">হিসাব করুন</button>
+    </form>
+
+    <div>
+      <div class="card sticky">
+        <div class="result-head">
+          <div class="label">মাসিক নিট প্রাপ্য বেতন</div>
+          <div class="big-num" id="netAmount">৳ ০</div>
+          <div class="chips">
+            <span class="chip" id="chipGrade"></span>
+            <span class="chip" id="chipBasic"></span>
+            <span class="chip gold" id="chipArea"></span>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>খাত</th><th>টাকা</th></tr></thead>
+          <tbody id="breakdownBody"></tbody>
+        </table>
+        <div class="card-pad no-print" style="border-top:1px solid var(--line)">
+          <button class="btn btn-ghost btn-block" id="printBtn" type="button">বিবরণী প্রিন্ট / পিডিএফ করুন</button>
+        </div>
+      </div>
+
+      <div class="card card-pad" id="bonus" style="margin-top:16px">
+        <h3>উৎসব ও বৈশাখী ভাতা</h3>
+        <table style="margin-top:8px"><tbody id="bonusBody"></tbody></table>
+      </div>
+
+      <div class="grid grid-2" style="margin-top:16px">
+        <div class="stat"><div class="k">বার্ষিক মোট (Gross)</div><div class="v num" id="yearGross">—</div></div>
+        <div class="stat"><div class="k">বার্ষিক নিট</div><div class="v num" id="yearNet">—</div></div>
+      </div>
+
+      <div class="card card-pad" id="tax" style="margin-top:16px">
+        <h3>আয়কর হিসাব</h3>
+        <table style="margin-top:8px"><tbody>
+          <tr><td>বেতন খাতে অব্যাহতি<span class="note">মোট আয়ের এক-তৃতীয়াংশ বা সর্বোচ্চ সীমা, যেটি কম</span></td><td class="num" id="taxExempt">—</td></tr>
+          <tr><td>করমুক্ত আয়ের সীমা</td><td class="num" id="taxLimit">—</td></tr>
+          <tr class="sum"><td>বার্ষিক প্রদেয় কর</td><td class="num" id="taxAnnual">—</td></tr>
+        </tbody></table>
+        <p class="hint" style="margin-top:10px">বিনিয়োগজনিত কর রেয়াত এখানে ধরা হয়নি; রেয়াত নিলে প্রকৃত কর কম হবে।</p>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="site-foot">
+  <div class="wrap foot-grid">
+    <div>
+      <h4>বেতন হিসাব</h4>
+      <p>সরকারি চাকরিজীবীদের মাসিক বেতন, ভাতা, কর্তন, ইনক্রিমেন্ট ও পেনশন হিসাবের একটি খোলা প্রোটোটাইপ। সব হিসাব আপনার ব্রাউজারেই হয় — কোনো তথ্য সার্ভারে পাঠানো হয় না।</p>
+    </div>
+    <div>
+      <h4>ক্যালকুলেটর</h4>
+      <ul>
+        <li><a href="calculator.html">বেতন ক্যালকুলেটর</a></li>
+        <li><a href="increment.html">ইনক্রিমেন্ট ক্যালকুলেটর</a></li>
+        <li><a href="pension.html">পেনশন ক্যালকুলেটর</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>তথ্য</h4>
+      <ul>
+        <li><a href="payscale.html">বেতন স্কেল টেবিল</a></li>
+        <li><a href="about.html">পরিচিতি ও দাবিত্যাগ</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:20px;font-size:.82rem">
+    © <span class="num">২০২৬</span> বেতন হিসাব · শিক্ষামূলক প্রোটোটাইপ, কোনো সরকারি ওয়েবসাইট নয়।
+  </div>
+</footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/calc.js"></script>
+<script src="assets/js/ui.js"></script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="bn" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>বেতন স্কেল · বেতন হিসাব</title>
+<meta name="description" content="১–২০ নং গ্রেডের প্রতিটি ধাপের মূল বেতনের পূর্ণ টেবিল।">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f6b4f'/><text x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='monospace'>৳</text></svg>">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="brand" href="index.html">
+      <span class="mark">৳</span>
+      <span>বেতন হিসাব<small>SALARY BD · প্রোটোটাইপ</small></span>
+    </a>
+    <button class="icon-btn nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="মেনু">☰</button>
+    <nav class="nav" id="nav">
+      <a href="index.html">হোম</a>
+      <a href="calculator.html">বেতন ক্যালকুলেটর</a>
+      <a href="payscale.html">বেতন স্কেল</a>
+      <a href="increment.html">ইনক্রিমেন্ট</a>
+      <a href="pension.html">পেনশন</a>
+      <a href="about.html">পরিচিতি</a>
+      <button class="icon-btn" id="themeToggle" title="থিম বদলান" aria-label="থিম বদলান" style="width:auto;padding:0 12px;font-size:.85rem;font-weight:700">থিম</button>
+    </nav>
+  </div>
+</header>
+<main>
+<div class="hero" style="padding:30px 0 24px">
+  <div class="wrap">
+    <span class="eyebrow">● গ্রেড ১ – ২০</span>
+    <h1>জাতীয় বেতন স্কেল</h1>
+    <p class="lede">প্রতিটি গ্রেডের শুরুর মূল বেতন থেকে ৫% হারে বার্ষিক ইনক্রিমেন্ট ধরে সর্বোচ্চ সীমা পর্যন্ত ধাপগুলো নিচের টেবিলে দেওয়া হলো। টেবিলটি ডানে-বাঁয়ে স্ক্রল করা যায়।</p>
+  </div>
+</div>
+<section>
+  <div class="wrap">
+    <div class="table-scroll">
+      <table id="scaleTable"></table>
+    </div>
+    <div class="notice" style="margin-top:18px">
+      <strong>মনে রাখুন:</strong> ধাপের মান হিসাব করে দেখানো হয়েছে — মূল বেতনের ৫% যোগ করে, সর্বোচ্চ সীমা অতিক্রম করলে সেখানেই থেমে যায়। প্রজ্ঞাপনের ছাপা টেবিলের সাথে রাউন্ডিংজনিত সামান্য পার্থক্য থাকতে পারে।
+    </div>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="calculator.html">এই স্কেল দিয়ে বেতন হিসাব করুন →</a>
+      <a class="btn btn-ghost" href="increment.html">ইনক্রিমেন্ট প্রক্ষেপণ</a>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="site-foot">
+  <div class="wrap foot-grid">
+    <div>
+      <h4>বেতন হিসাব</h4>
+      <p>সরকারি চাকরিজীবীদের মাসিক বেতন, ভাতা, কর্তন, ইনক্রিমেন্ট ও পেনশন হিসাবের একটি খোলা প্রোটোটাইপ। সব হিসাব আপনার ব্রাউজারেই হয় — কোনো তথ্য সার্ভারে পাঠানো হয় না।</p>
+    </div>
+    <div>
+      <h4>ক্যালকুলেটর</h4>
+      <ul>
+        <li><a href="calculator.html">বেতন ক্যালকুলেটর</a></li>
+        <li><a href="increment.html">ইনক্রিমেন্ট ক্যালকুলেটর</a></li>
+        <li><a href="pension.html">পেনশন ক্যালকুলেটর</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>তথ্য</h4>
+      <ul>
+        <li><a href="payscale.html">বেতন স্কেল টেবিল</a></li>
+        <li><a href="about.html">পরিচিতি ও দাবিত্যাগ</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:20px;font-size:.82rem">
+    © <span class="num">২০২৬</span> বেতন হিসাব · শিক্ষামূলক প্রোটোটাইপ, কোনো সরকারি ওয়েবসাইট নয়।
+  </div>
+</footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/calc.js"></script>
+<script src="assets/js/ui.js"></script>
+</body>
+</html>

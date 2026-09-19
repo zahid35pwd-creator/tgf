@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>বেতন হিসাব — সরকারি বেতন, ভাতা, ইনক্রিমেন্ট ও পেনশন ক্যালকুলেটর</title>
+<meta name="description" content="গ্রেড ও ধাপ অনুযায়ী মাসিক বেতন, ভাতা, কর্তন, আয়কর, বার্ষিক ইনক্রিমেন্ট ও পেনশনের হিসাব — এক ফাইলে।">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f6b4f'/><text x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='monospace'>৳</text></svg>">
+<style>
+/* ============================================================
+   বেতন হিসাব — প্রোটোটাইপ ডিজাইন সিস্টেম
+   গাঢ় সবুজ-সোনালি "লেজার" থিম, লাইট ও ডার্ক দুই মোডেই কাজ করে।
+   ============================================================ */
+
+:root{
+  --ink:#10221c; --ink-2:#3d5b51; --ink-3:#6d8b80;
+  --paper:#f4f7f4; --surface:#ffffff; --surface-2:#eef3ef;
+  --line:#d7e2da; --line-strong:#b9cbc0;
+  --brand:#0f6b4f; --brand-soft:#e3f2ea; --brand-ink:#0b4e39;
+  --gold:#a5751a; --gold-soft:#fbf1dc;
+  --danger:#a33131; --danger-soft:#fbe9e9;
+  --radius:16px; --radius-sm:10px;
+  --shadow:0 1px 2px rgba(16,34,28,.05), 0 8px 28px -14px rgba(16,34,28,.28);
+  --maxw:1120px;
+  --font:"Hind Siliguri","Noto Sans Bengali",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ink:#e7efe9; --ink-2:#a9c0b5; --ink-3:#7e978c;
+    --paper:#0c1512; --surface:#121f1a; --surface-2:#182821;
+    --line:#22352c; --line-strong:#334c40;
+    --brand:#3fbd8c; --brand-soft:#153025; --brand-ink:#8fe0be;
+    --gold:#d8ab52; --gold-soft:#2a2113;
+    --danger:#e08080; --danger-soft:#331c1c;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#e7efe9; --ink-2:#a9c0b5; --ink-3:#7e978c;
+  --paper:#0c1512; --surface:#121f1a; --surface-2:#182821;
+  --line:#22352c; --line-strong:#334c40;
+  --brand:#3fbd8c; --brand-soft:#153025; --brand-ink:#8fe0be;
+  --gold:#d8ab52; --gold-soft:#2a2113;
+  --danger:#e08080; --danger-soft:#331c1c;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -16px rgba(0,0,0,.7);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--font); font-size:16.5px; line-height:1.7;
+}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 16px}
+a{color:var(--brand-ink); text-underline-offset:3px}
+h1,h2,h3{line-height:1.35; margin:0 0 .5em; font-weight:700; letter-spacing:-.01em}
+h1{font-size:clamp(1.6rem,1.2rem + 2vw,2.5rem)}
+h2{font-size:clamp(1.25rem,1.05rem + 1vw,1.6rem)}
+h3{font-size:1.08rem}
+p{margin:0 0 1em}
+.num{font-family:var(--mono); font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
+
+/* ---------- হেডার ---------- */
+.site-head{
+  position:sticky; top:0; z-index:40; background:color-mix(in srgb,var(--paper) 88%,transparent);
+  backdrop-filter:saturate(1.4) blur(10px); border-bottom:1px solid var(--line);
+}
+.head-row{display:flex; align-items:center; gap:12px; min-height:62px}
+.brand{display:flex; align-items:center; gap:10px; font-weight:800; color:var(--ink); text-decoration:none; white-space:nowrap}
+.brand .mark{
+  width:32px; height:32px; border-radius:9px; display:grid; place-items:center;
+  background:linear-gradient(145deg,var(--brand),var(--brand-ink)); color:#fff;
+  font-family:var(--mono); font-size:.85rem; font-weight:700; flex:none;
+}
+.brand small{display:block; font-size:.62rem; color:var(--ink-3); font-weight:600; letter-spacing:.14em}
+.nav{display:flex; gap:4px; margin-inline-start:auto; align-items:center; flex-wrap:wrap}
+.nav a{
+  padding:7px 13px; border-radius:999px; font-size:.92rem; font-weight:600;
+  color:var(--ink-2); text-decoration:none; border:1px solid transparent;
+}
+.nav a:hover{background:var(--surface-2); color:var(--ink)}
+.nav a[aria-current="page"]{background:var(--brand-soft); color:var(--brand-ink); border-color:var(--line-strong)}
+.icon-btn{
+  width:38px; height:38px; flex:none; border-radius:10px; border:1px solid var(--line);
+  background:var(--surface); color:var(--ink-2); cursor:pointer; font-size:1rem;
+}
+.icon-btn:hover{border-color:var(--line-strong); color:var(--ink)}
+.nav-toggle{display:none}
+
+/* ---------- হিরো ---------- */
+.hero{padding:48px 0 34px; border-bottom:1px solid var(--line);
+  background:radial-gradient(900px 300px at 82% -20%,var(--brand-soft),transparent 70%)}
+.eyebrow{
+  display:inline-flex; align-items:center; gap:7px; font-size:.78rem; font-weight:700;
+  letter-spacing:.08em; color:var(--brand-ink); background:var(--brand-soft);
+  border:1px solid var(--line-strong); padding:5px 12px; border-radius:999px; margin-bottom:14px;
+}
+.lede{font-size:1.08rem; color:var(--ink-2); max-width:62ch}
+.cta-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:20px}
+
+/* ---------- বাটন ---------- */
+.btn{
+  display:inline-flex; align-items:center; gap:8px; padding:11px 20px; border-radius:11px;
+  font:inherit; font-weight:700; font-size:.95rem; cursor:pointer; text-decoration:none;
+  border:1px solid transparent; transition:transform .06s ease, background .15s ease;
+}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--brand); color:#fff}
+.btn-primary:hover{background:var(--brand-ink)}
+.btn-ghost{background:var(--surface); color:var(--ink); border-color:var(--line-strong)}
+.btn-ghost:hover{background:var(--surface-2)}
+.btn-block{width:100%; justify-content:center}
+
+/* ---------- কার্ড ও গ্রিড ---------- */
+section{padding:40px 0}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+.card-pad{padding:22px}
+.grid{display:grid; gap:16px}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.calc-layout{display:grid; gap:22px; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); align-items:start}
+.sticky{position:sticky; top:82px}
+
+.feature{display:block; text-decoration:none; color:inherit; padding:20px; border-radius:var(--radius);
+  background:var(--surface); border:1px solid var(--line); box-shadow:var(--shadow)}
+.feature:hover{border-color:var(--brand); transform:translateY(-2px); transition:.15s}
+.feature .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  background:var(--brand-soft); color:var(--brand-ink); font-size:1.1rem; margin-bottom:10px}
+.feature h3{margin-bottom:.25em}
+.feature p{margin:0; color:var(--ink-2); font-size:.93rem}
+
+/* ---------- ফর্ম ---------- */
+fieldset{border:0; margin:0 0 20px; padding:0}
+legend{
+  font-size:.74rem; font-weight:800; letter-spacing:.12em; color:var(--ink-3);
+  text-transform:uppercase; padding:0 0 10px;
+}
+.field{margin-bottom:14px}
+.field label{display:block; font-size:.88rem; font-weight:600; margin-bottom:6px; color:var(--ink-2)}
+.field .hint{font-size:.78rem; color:var(--ink-3); margin-top:5px}
+input[type=number],input[type=text],select{
+  width:100%; padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--line-strong);
+  background:var(--surface); color:var(--ink); font:inherit; font-size:.95rem;
+}
+input:focus,select:focus{outline:2px solid var(--brand); outline-offset:1px; border-color:var(--brand)}
+.check{display:flex; align-items:flex-start; gap:9px; padding:8px 10px; border-radius:var(--radius-sm);
+  border:1px solid var(--line); margin-bottom:8px; background:var(--surface-2); font-size:.9rem}
+.check input{margin-top:5px; accent-color:var(--brand)}
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+
+/* ---------- ফলাফল ---------- */
+.result-head{padding:20px 22px; border-bottom:1px solid var(--line);
+  background:linear-gradient(160deg,var(--brand-soft),transparent)}
+.result-head .label{font-size:.78rem; font-weight:700; letter-spacing:.1em; color:var(--ink-3)}
+.big-num{font-family:var(--mono); font-size:clamp(1.9rem,1.4rem + 2.2vw,2.7rem); font-weight:700;
+  color:var(--brand-ink); line-height:1.15}
+.chips{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.chip{font-size:.8rem; padding:4px 11px; border-radius:999px; background:var(--surface);
+  border:1px solid var(--line-strong); color:var(--ink-2)}
+.chip.gold{background:var(--gold-soft); border-color:var(--gold); color:var(--gold)}
+
+table{width:100%; border-collapse:collapse; font-size:.93rem}
+th,td{padding:9px 12px; text-align:right; border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:.75rem; letter-spacing:.08em; color:var(--ink-3); text-transform:uppercase;
+  background:var(--surface-2); position:sticky; top:0}
+tbody tr:hover{background:var(--surface-2)}
+tr.sum td{font-weight:700; background:var(--surface-2); border-top:2px solid var(--line-strong)}
+tr.net td{font-weight:800; color:var(--brand-ink); background:var(--brand-soft); font-size:1.02rem}
+td .note{display:block; font-size:.76rem; color:var(--ink-3); font-family:var(--font)}
+.table-scroll{overflow:auto; max-height:70vh; border-radius:var(--radius); border:1px solid var(--line)}
+.table-scroll table{font-size:.88rem}
+.table-scroll td,.table-scroll th{white-space:nowrap}
+
+.stat{padding:16px 18px; border-radius:var(--radius); border:1px solid var(--line); background:var(--surface)}
+.stat .k{font-size:.8rem; color:var(--ink-3); font-weight:600}
+.stat .v{font-family:var(--mono); font-size:1.3rem; font-weight:700; margin-top:4px}
+
+.notice{border-inline-start:4px solid var(--gold); background:var(--gold-soft); color:var(--ink);
+  padding:14px 16px; border-radius:var(--radius-sm); font-size:.9rem}
+.notice.warn{border-color:var(--danger); background:var(--danger-soft)}
+.notice strong{color:inherit}
+
+/* ---------- ফুটার ---------- */
+.site-foot{border-top:1px solid var(--line); margin-top:40px; padding:30px 0; color:var(--ink-3); font-size:.88rem}
+.foot-grid{display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:24px}
+.foot-grid h4{font-size:.78rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2); margin:0 0 10px}
+.foot-grid ul{list-style:none; margin:0; padding:0}
+.foot-grid li{margin-bottom:6px}
+.foot-grid a{color:var(--ink-2); text-decoration:none}
+.foot-grid a:hover{color:var(--brand-ink)}
+
+/* ---------- রেসপনসিভ ---------- */
+@media (max-width:900px){
+  .calc-layout,.grid-3,.grid-2,.foot-grid{grid-template-columns:1fr}
+  .sticky{position:static}
+}
+@media (max-width:720px){
+  .nav-toggle{display:inline-grid; place-items:center; margin-inline-start:auto}
+  .nav{
+    display:none; position:absolute; inset-inline:12px; top:62px; flex-direction:column;
+    align-items:stretch; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius); padding:8px; box-shadow:var(--shadow); margin:0;
+  }
+  .nav.open{display:flex}
+  .nav a{border-radius:var(--radius-sm)}
+  .two-col{grid-template-columns:1fr}
+}
+@media print{
+  .site-head,.site-foot,.no-print,.cta-row{display:none!important}
+  body{background:#fff} .card{box-shadow:none; border-color:#ccc}
+}
+
+/* একক ফাইল সংস্করণ: পেজগুলো হ্যাশ রাউটিং দিয়ে দেখানো হয় */
+.page[hidden]{display:none}
+</style>
+
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="brand" href="#home">
+      <span class="mark">৳</span>
+      <span>বেতন হিসাব<small>SALARY BD · প্রোটোটাইপ</small></span>
+    </a>
+    <button class="icon-btn nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="মেনু">☰</button>
+    <nav class="nav" id="nav">
+      <a href="#home">হোম</a>
+      <a href="#calculator">বেতন ক্যালকুলেটর</a>
+      <a href="#payscale">বেতন স্কেল</a>
+      <a href="#increment">ইনক্রিমেন্ট</a>
+      <a href="#pension">পেনশন</a>
+      <a href="#about">পরিচিতি</a>
+      <button class="icon-btn" id="themeToggle" title="থিম বদলান" aria-label="থিম বদলান" style="width:auto;padding:0 12px;font-size:.85rem;font-weight:700">থিম</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section class="page" id="page-home">
+<div class="hero">
+  <div class="wrap">
+    <span class="eyebrow">● জাতীয় বেতন স্কেল ভিত্তিক</span>
+    <h1>নিজের বেতন নিজেই হিসাব করুন</h1>
+    <p class="lede">গ্রেড আর ধাপ বেছে নিন — মূল বেতন, বাড়ি ভাড়া, চিকিৎসা ও অন্যান্য ভাতা, জিপিএফ, আয়কর ও সব কর্তন বাদ দিয়ে হাতে পাওয়া নিট বেতন সাথে সাথেই দেখতে পাবেন। উৎসব ভাতা, বার্ষিক ইনক্রিমেন্ট ও অবসরের পেনশনের হিসাবও এক জায়গায়।</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#calculator">বেতন হিসাব শুরু করুন →</a>
+      <a class="btn btn-ghost" href="#payscale">পূর্ণ বেতন স্কেল দেখুন</a>
+    </div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>কী কী হিসাব করতে পারবেন</h2>
+    <div class="grid grid-3" style="margin-top:18px">
+      <a class="feature" href="#calculator">
+        <div class="ico">৳</div>
+        <h3>মাসিক বেতন বিবরণী</h3>
+        <p>গ্রেড, ধাপ ও কর্মস্থল অনুযায়ী মূল বেতন, সব ভাতা ও কর্তনের পূর্ণ তালিকা এবং নিট প্রাপ্য।</p>
+      </a>
+      <a class="feature" href="#payscale">
+        <div class="ico">▤</div>
+        <h3>বেতন স্কেল টেবিল</h3>
+        <p>১ থেকে ২০ নং গ্রেড পর্যন্ত প্রতিটি ধাপের মূল বেতন এক টেবিলে।</p>
+      </a>
+      <a class="feature" href="#increment">
+        <div class="ico">↗</div>
+        <h3>ইনক্রিমেন্ট প্রক্ষেপণ</h3>
+        <p>বছরে ৫% হারে বার্ষিক ইনক্রিমেন্টে আগামী কয়েক বছরে মূল বেতন কোথায় দাঁড়াবে।</p>
+      </a>
+      <a class="feature" href="#pension">
+        <div class="ico">☂</div>
+        <h3>পেনশন ও গ্র্যাচুইটি</h3>
+        <p>চাকরিকাল অনুযায়ী পেনশনের হার, সমর্পণের পর এককালীন আনুতোষিক ও মাসিক পেনশন।</p>
+      </a>
+      <a class="feature" href="#calculator" data-anchor="tax">
+        <div class="ico">%</div>
+        <h3>আয়কর হিসাব</h3>
+        <p>বেতন খাতের অব্যাহতি বাদ দিয়ে স্ল্যাব অনুযায়ী বার্ষিক কর ও মাসিক কিস্তি।</p>
+      </a>
+      <a class="feature" href="#calculator" data-anchor="bonus">
+        <div class="ico">★</div>
+        <h3>উৎসব ও বৈশাখী ভাতা</h3>
+        <p>মূল বেতনের ভিত্তিতে বছরে প্রাপ্য বোনাসের পরিমাণ।</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="card card-pad">
+      <h2>কীভাবে কাজ করে</h2>
+      <div class="grid grid-3" style="margin-top:14px">
+        <div class="stat"><div class="k">ধাপ ১</div><div class="v" style="font-size:1rem">গ্রেড ও ধাপ নির্বাচন</div></div>
+        <div class="stat"><div class="k">ধাপ ২</div><div class="v" style="font-size:1rem">কর্মস্থল ও ভাতা-কর্তন</div></div>
+        <div class="stat"><div class="k">ধাপ ৩</div><div class="v" style="font-size:1rem">নিট বেতন ও বিবরণী</div></div>
+      </div>
+      <p style="margin-top:18px;color:var(--ink-2)">কোনো নিবন্ধন লাগে না, কোনো তথ্য সংরক্ষণ করা হয় না। হিসাব সম্পূর্ণ আপনার ব্রাউজারেই সম্পন্ন হয় এবং ফলাফল সরাসরি প্রিন্ট বা পিডিএফ করে রাখতে পারবেন।</p>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="notice">
+      <strong>দাবিত্যাগ:</strong> এটি একটি শিক্ষামূলক প্রোটোটাইপ। হিসাবের হারগুলো সংশ্লিষ্ট প্রজ্ঞাপন অনুযায়ী পরিবর্তিত হতে পারে। চূড়ান্ত হিসাবের জন্য নিজ দপ্তরের হিসাবরক্ষণ কর্মকর্তার সাথে যোগাযোগ করুন। বিস্তারিত <a href="#about">পরিচিতি</a> পাতায়।
+    </div>
+  </div>
+</section>
+</section>
+<section class="page" id="page-calculator" hidden>
+<div class="hero" style="padding:30px 0 24px">
+  <div class="wrap">
+    <span class="eyebrow">● ধাপ অনুযায়ী পূর্ণ বিবরণী</span>
+    <h1>বেতন ক্যালকুলেটর</h1>
+    <p class="lede">বাঁ পাশের তথ্য বদলালেই ডান পাশের হিসাব সাথে সাথে হালনাগাদ হবে।</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap calc-layout">
+
+    <form class="card card-pad no-print" id="salaryForm" autocomplete="off">
+      <fieldset>
+        <legend>চাকরির তথ্য</legend>
+        <div class="field">
+          <label for="grade">গ্রেড</label>
+          <select id="grade"></select>
+        </div>
+        <div class="field" id="stepWrap">
+          <label for="step">বেতন ধাপ</label>
+          <select id="step"></select>
+          <div class="hint">যোগদানের পর প্রতি বছর ১ জুলাই একটি করে ধাপ বাড়ে।</div>
+        </div>
+        <div class="check">
+          <input type="checkbox" id="useManualBasic">
+          <label for="useManualBasic" style="margin:0">ধাপের বদলে নিজে মূল বেতন লিখব</label>
+        </div>
+        <div class="field" id="manualBasicWrap" style="display:none">
+          <label for="manualBasic">বর্তমান মূল বেতন (টাকা)</label>
+          <input type="number" id="manualBasic" value="22000" min="0" step="10">
+        </div>
+        <div class="field">
+          <label for="area">কর্মস্থল (বাড়ি ভাড়ার হার নির্ধারণে)</label>
+          <select id="area"></select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>ভাতা</legend>
+        <div class="field">
+          <label for="children">শিক্ষা সহায়ক ভাতা পাবে এমন সন্তান</label>
+          <input type="number" id="children" value="0" min="0" max="2" step="1">
+          <div class="hint">সর্বোচ্চ ২ সন্তান, প্রতি সন্তান ৫০০ টাকা।</div>
+        </div>
+        <div class="check"><input type="checkbox" id="tiffin"><label for="tiffin" style="margin:0">টিফিন ভাতা (২০০ টাকা)</label></div>
+        <div class="check"><input type="checkbox" id="conveyance"><label for="conveyance" style="margin:0">যাতায়াত ভাতা (৩০০ টাকা)</label></div>
+        <div class="check"><input type="checkbox" id="washing"><label for="washing" style="margin:0">ধোলাই ভাতা (১০০ টাকা)</label></div>
+        <div class="field">
+          <label for="otherAllowance">অন্যান্য ভাতা (টাকা)</label>
+          <input type="number" id="otherAllowance" value="0" min="0" step="10">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>কর্তন</legend>
+        <div class="field">
+          <label for="gpfRate">জিপিএফ চাঁদার হার</label>
+          <select id="gpfRate"></select>
+        </div>
+        <div class="check"><input type="checkbox" id="welfare" checked><label for="welfare" style="margin:0">কল্যাণ তহবিল (৫০ টাকা)</label></div>
+        <div class="check"><input type="checkbox" id="insurance" checked><label for="insurance" style="margin:0">যৌথবীমা (১০০ টাকা)</label></div>
+        <div class="field">
+          <label for="taxCategory">করদাতার শ্রেণি</label>
+          <select id="taxCategory">
+            <option value="">সাধারণ</option>
+            <option value="female">মহিলা / ৬৫+ বছর</option>
+            <option value="disabled">প্রতিবন্ধী করদাতা</option>
+            <option value="freedomFighter">গেজেটভুক্ত মুক্তিযোদ্ধা</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="otherDeduction">অন্যান্য কর্তন (টাকা)</label>
+          <input type="number" id="otherDeduction" value="0" min="0" step="10">
+        </div>
+      </fieldset>
+
+      <button type="submit" class="btn btn-primary btn-block">হিসাব করুন</button>
+    </form>
+
+    <div>
+      <div class="card sticky">
+        <div class="result-head">
+          <div class="label">মাসিক নিট প্রাপ্য বেতন</div>
+          <div class="big-num" id="netAmount">৳ ০</div>
+          <div class="chips">
+            <span class="chip" id="chipGrade"></span>
+            <span class="chip" id="chipBasic"></span>
+            <span class="chip gold" id="chipArea"></span>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>খাত</th><th>টাকা</th></tr></thead>
+          <tbody id="breakdownBody"></tbody>
+        </table>
+        <div class="card-pad no-print" style="border-top:1px solid var(--line)">
+          <button class="btn btn-ghost btn-block" id="printBtn" type="button">বিবরণী প্রিন্ট / পিডিএফ করুন</button>
+        </div>
+      </div>
+
+      <div class="card card-pad" id="bonus" style="margin-top:16px">
+        <h3>উৎসব ও বৈশাখী ভাতা</h3>
+        <table style="margin-top:8px"><tbody id="bonusBody"></tbody></table>
+      </div>
+
+      <div class="grid grid-2" style="margin-top:16px">
+        <div class="stat"><div class="k">বার্ষিক মোট (Gross)</div><div class="v num" id="yearGross">—</div></div>
+        <div class="stat"><div class="k">বার্ষিক নিট</div><div class="v num" id="yearNet">—</div></div>
+      </div>
+
+      <div class="card card-pad" id="tax" style="margin-top:16px">
+        <h3>আয়কর হিসাব</h3>
+        <table style="margin-top:8px"><tbody>
+          <tr><td>বেতন খাতে অব্যাহতি<span class="note">মোট আয়ের এক-তৃতীয়াংশ বা সর্বোচ্চ সীমা, যেটি কম</span></td><td class="num" id="taxExempt">—</td></tr>
+          <tr><td>করমুক্ত আয়ের সীমা</td><td class="num" id="taxLimit">—</td></tr>
+          <tr class="sum"><td>বার্ষিক প্রদেয় কর</td><td class="num" id="taxAnnual">—</td></tr>
+        </tbody></table>
+        <p class="hint" style="margin-top:10px">বিনিয়োগজনিত কর রেয়াত এখানে ধরা হয়নি; রেয়াত নিলে প্রকৃত কর কম হবে।</p>
+      </div>
+    </div>
+  </div>
+</section>
+</section>
+<section class="page" id="page-payscale" hidden>
+<div class="hero" style="padding:30px 0 24px">
+  <div class="wrap">
+    <span class="eyebrow">● গ্রেড ১ – ২০</span>
+    <h1>জাতীয় বেতন স্কেল</h1>
+    <p class="lede">প্রতিটি গ্রেডের শুরুর মূল বেতন থেকে ৫% হারে বার্ষিক ইনক্রিমেন্ট ধরে সর্বোচ্চ সীমা পর্যন্ত ধাপগুলো নিচের টেবিলে দেওয়া হলো। টেবিলটি ডানে-বাঁয়ে স্ক্রল করা যায়।</p>
+  </div>
+</div>
+<section>
+  <div class="wrap">
+    <div class="table-scroll">
+      <table id="scaleTable"></table>
+    </div>
+    <div class="notice" style="margin-top:18px">
+      <strong>মনে রাখুন:</strong> ধাপের মান হিসাব করে দেখানো হয়েছে — মূল বেতনের ৫% যোগ করে, সর্বোচ্চ সীমা অতিক্রম করলে সেখানেই থেমে যায়। প্রজ্ঞাপনের ছাপা টেবিলের সাথে রাউন্ডিংজনিত সামান্য পার্থক্য থাকতে পারে।
+    </div>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#calculator">এই স্কেল দিয়ে বেতন হিসাব করুন →</a>
+      <a class="btn btn-ghost" href="#increment">ইনক্রিমেন্ট প্রক্ষেপণ</a>
+    </div>
+  </div>
+</section>
+</section>
+<section class="page" id="page-increment" hidden>
+<div class="hero" style="padding:30px 0 24px">
+  <div class="wrap">
+    <span class="eyebrow">● বার্ষিক ৫%</span>
+    <h1>ইনক্রিমেন্ট ক্যালকুলেটর</h1>
+    <p class="lede">প্রতি বছর ১ জুলাই মূল বেতনের ৫% হারে বার্ষিক ইনক্রিমেন্ট যোগ হয়। গ্রেডের সর্বোচ্চ সীমায় পৌঁছে গেলে ইনক্রিমেন্ট আর যোগ হয় না।</p>
+  </div>
+</div>
+<section>
+  <div class="wrap calc-layout">
+    <form class="card card-pad no-print" id="incrementForm" autocomplete="off">
+      <fieldset>
+        <legend>বর্তমান অবস্থা</legend>
+        <div class="field">
+          <label for="incGrade">গ্রেড</label>
+          <select id="incGrade"></select>
+        </div>
+        <div class="field" id="incStepWrap">
+          <label for="incStep">বর্তমান ধাপ</label>
+          <select id="incStep"></select>
+        </div>
+        <div class="check">
+          <input type="checkbox" id="incManual">
+          <label for="incManual" style="margin:0">ধাপের বদলে নিজে মূল বেতন লিখব</label>
+        </div>
+        <div class="field" id="incBasicWrap" style="display:none">
+          <label for="incBasic">বর্তমান মূল বেতন (টাকা)</label>
+          <input type="number" id="incBasic" value="22000" min="0" step="10">
+        </div>
+        <div class="field">
+          <label for="incYears">কত বছরের প্রক্ষেপণ</label>
+          <input type="number" id="incYears" value="10" min="1" max="25" step="1">
+          <div class="hint">সর্বোচ্চ ২৫ বছর পর্যন্ত।</div>
+        </div>
+      </fieldset>
+      <button type="submit" class="btn btn-primary btn-block">প্রক্ষেপণ দেখুন</button>
+    </form>
+
+    <div>
+      <div class="grid grid-3">
+        <div class="stat"><div class="k">বর্তমান মূল বেতন</div><div class="v" id="incNow">—</div></div>
+        <div class="stat"><div class="k">প্রক্ষেপিত মূল বেতন</div><div class="v" id="incFuture">—</div></div>
+        <div class="stat"><div class="k">মোট বৃদ্ধি</div><div class="v" id="incTotal">—</div></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <table>
+          <thead><tr><th>সময়</th><th>ইনক্রিমেন্ট</th><th>মূল বেতন</th></tr></thead>
+          <tbody id="incBody"></tbody>
+        </table>
+      </div>
+      <div class="notice" id="incCapNote" style="margin-top:16px;display:none">
+        <strong>সর্বোচ্চ সীমা:</strong> এই গ্রেডের সর্বোচ্চ মূল বেতনে পৌঁছে গেছে, এরপর আর বার্ষিক ইনক্রিমেন্ট যোগ হবে না। পদোন্নতি বা টাইমস্কেল ছাড়া মূল বেতন আর বাড়বে না।
+      </div>
+    </div>
+  </div>
+</section>
+</section>
+<section class="page" id="page-pension" hidden>
+<div class="hero" style="padding:30px 0 24px">
+  <div class="wrap">
+    <span class="eyebrow">● অবসর সুবিধা</span>
+    <h1>পেনশন ও গ্র্যাচুইটি ক্যালকুলেটর</h1>
+    <p class="lede">সর্বশেষ মূল বেতন ও মোট চাকরিকাল দিলে মোট পেনশন, সমর্পণের পর এককালীন আনুতোষিক এবং মাসিক নিট পেনশন হিসাব করা হবে।</p>
+  </div>
+</div>
+<section>
+  <div class="wrap calc-layout">
+    <form class="card card-pad no-print" id="pensionForm" autocomplete="off">
+      <fieldset>
+        <legend>অবসরকালীন তথ্য</legend>
+        <div class="field">
+          <label for="penBasic">সর্বশেষ মূল বেতন (টাকা)</label>
+          <input type="number" id="penBasic" value="53060" min="0" step="10">
+        </div>
+        <div class="field">
+          <label for="penYears">মোট চাকরিকাল (বছর)</label>
+          <input type="number" id="penYears" value="25" min="0" max="40" step="1">
+          <div class="hint">পেনশন পেতে কমপক্ষে ৫ বছর, পূর্ণ হারের জন্য ২৫ বছর চাকরি প্রয়োজন।</div>
+        </div>
+      </fieldset>
+      <button type="submit" class="btn btn-primary btn-block">পেনশন হিসাব করুন</button>
+    </form>
+
+    <div>
+      <div class="notice warn" id="penWarn" style="display:none"></div>
+      <div id="penResult">
+        <div class="card">
+          <div class="result-head">
+            <div class="label">মাসিক সর্বমোট প্রাপ্য</div>
+            <div class="big-num" id="penMonthly">৳ ০</div>
+            <div class="chips">
+              <span class="chip">পেনশনের হার <span id="penPercent"></span></span>
+              <span class="chip gold">আনুতোষিক <span id="penGratuity"></span></span>
+            </div>
+          </div>
+          <table><tbody id="penBody"></tbody></table>
+        </div>
+        <div class="notice" style="margin-top:16px">
+          <strong>হিসাবের ভিত্তি:</strong> মোট পেনশনের অর্ধেক সমর্পণ করে প্রতি ১ টাকার বিপরীতে ২৩০ টাকা হারে এককালীন আনুতোষিক এবং বাকি অর্ধেক মাসিক পেনশন হিসেবে ধরা হয়েছে। এর সাথে পেনশনারের মাসিক চিকিৎসা ভাতা যোগ করা হয়েছে।
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</section>
+<section class="page" id="page-about" hidden>
+<div class="hero" style="padding:30px 0 24px">
+  <div class="wrap">
+    <span class="eyebrow">● প্রোটোটাইপ</span>
+    <h1>পরিচিতি ও দাবিত্যাগ</h1>
+    <p class="lede">এই সাইটটি কীভাবে হিসাব করে, কোন কোন হার ব্যবহার করে এবং কোথায় সতর্ক থাকতে হবে।</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap grid grid-2">
+    <div class="card card-pad">
+      <h2>এটি কী</h2>
+      <p>সরকারি চাকরিজীবীদের মাসিক বেতন, ভাতা, কর্তন, বার্ষিক ইনক্রিমেন্ট ও অবসরকালীন পেনশন হিসাবের একটি খোলা সোর্স প্রোটোটাইপ। কোনো সার্ভার নেই — সবটুকু হিসাব আপনার ব্রাউজারের জাভাস্ক্রিপ্টেই হয়, তাই আপনার দেওয়া কোনো তথ্য কোথাও পাঠানো বা সংরক্ষণ করা হয় না।</p>
+      <h3>হিসাবের কাঠামো</h3>
+      <ul>
+        <li>সব হার ও স্কেল একটি আলাদা ডেটা ফাইলে রাখা, হিসাবের কোডে কোনো সংখ্যা বসানো নেই।</li>
+        <li>হিসাবের ফাংশনগুলো ইন্টারফেস থেকে আলাদা, ফলে আলাদাভাবে পরীক্ষা করা যায়।</li>
+        <li>প্রজ্ঞাপনে হার বদলালে শুধু ডেটা ফাইল সম্পাদনা করলেই পুরো সাইট হালনাগাদ হয়।</li>
+      </ul>
+    </div>
+
+    <div class="card card-pad">
+      <h2>কোন হার ব্যবহার করা হয়েছে</h2>
+      <table><tbody>
+        <tr><td>বার্ষিক ইনক্রিমেন্ট</td><td class="num">মূল বেতনের ৫%</td></tr>
+        <tr><td>বাড়ি ভাড়া ভাতা</td><td class="num">এলাকা ও স্তরভেদে ৩০%–৬৫%</td></tr>
+        <tr><td>চিকিৎসা ভাতা</td><td class="num">১,৫০০ টাকা</td></tr>
+        <tr><td>শিক্ষা সহায়ক ভাতা</td><td class="num">সন্তানপ্রতি ৫০০, সর্বোচ্চ ২ জন</td></tr>
+        <tr><td>উৎসব ভাতা</td><td class="num">মূল বেতনের ১০০%, বছরে ২ বার</td></tr>
+        <tr><td>বৈশাখী ভাতা</td><td class="num">মূল বেতনের ২০%</td></tr>
+        <tr><td>পূর্ণ পেনশনের হার</td><td class="num">মূল বেতনের ৯০%</td></tr>
+        <tr><td>আনুতোষিকের হার</td><td class="num">১ টাকার বিপরীতে ২৩০ টাকা</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="notice warn">
+      <strong>গুরুত্বপূর্ণ দাবিত্যাগ।</strong> এটি কোনো সরকারি ওয়েবসাইট নয় এবং কোনো সরকারি দপ্তরের সাথে সম্পৃক্ত নয়। এখানে দেখানো হিসাব শুধু ধারণা পাওয়ার জন্য। ভাতা ও কর্তনের হার, আয়করের স্ল্যাব এবং বিশেষ প্রণোদনার হার সময়ে সময়ে প্রজ্ঞাপনের মাধ্যমে পরিবর্তিত হয়; কোনো কোনো ভাতা দপ্তর বা পদভেদে ভিন্ন হতে পারে। বেতন নির্ধারণ, আয়কর রিটার্ন বা পেনশন মঞ্জুরির মতো কাজে ব্যবহারের আগে নিজ দপ্তরের হিসাবরক্ষণ কর্মকর্তা বা হিসাব মহানিয়ন্ত্রকের দপ্তরের সাথে মিলিয়ে নিন।
+    </div>
+  </div>
+</section>
+</section>
+</main>
+
+
+<footer class="site-foot">
+  <div class="wrap foot-grid">
+    <div>
+      <h4>বেতন হিসাব</h4>
+      <p>সরকারি চাকরিজীবীদের মাসিক বেতন, ভাতা, কর্তন, ইনক্রিমেন্ট ও পেনশন হিসাবের একটি খোলা প্রোটোটাইপ। সব হিসাব আপনার ব্রাউজারেই হয় — কোনো তথ্য কোথাও পাঠানো হয় না।</p>
+    </div>
+    <div>
+      <h4>ক্যালকুলেটর</h4>
+      <ul>
+        <li><a href="#calculator">বেতন ক্যালকুলেটর</a></li>
+        <li><a href="#increment">ইনক্রিমেন্ট ক্যালকুলেটর</a></li>
+        <li><a href="#pension">পেনশন ক্যালকুলেটর</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>তথ্য</h4>
+      <ul>
+        <li><a href="#payscale">বেতন স্কেল টেবিল</a></li>
+        <li><a href="#about">পরিচিতি ও দাবিত্যাগ</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:20px;font-size:.82rem">
+    © <span class="num">২০২৬</span> বেতন হিসাব · শিক্ষামূলক প্রোটোটাইপ, কোনো সরকারি ওয়েবসাইট নয়।
+  </div>
+</footer>
+
+<script>
+/*
+ * data.js — সকল হার, স্কেল ও নিয়ম এক জায়গায়।
+ * প্রতিটি মান সরকারি প্রজ্ঞাপন পরিবর্তিত হলে শুধু এই ফাইল সম্পাদনা করলেই
+ * পুরো সাইটের হিসাব হালনাগাদ হয়ে যাবে। কোনো হিসাব ফাংশনে হার হার্ডকোড করা নেই।
+ */
+
+const PAY_SCALE_YEAR = '২০১৫ জাতীয় বেতন স্কেল';
+
+/* গ্রেড ১–২০ : [শুরুর মূল বেতন, সর্বোচ্চ মূল বেতন] */
+const GRADES = [
+  { grade: 1,  min: 78000, max: 78000 },
+  { grade: 2,  min: 66000, max: 76490 },
+  { grade: 3,  min: 56500, max: 74400 },
+  { grade: 4,  min: 50000, max: 71200 },
+  { grade: 5,  min: 43000, max: 69850 },
+  { grade: 6,  min: 35500, max: 67010 },
+  { grade: 7,  min: 29000, max: 63410 },
+  { grade: 8,  min: 23000, max: 55470 },
+  { grade: 9,  min: 22000, max: 53060 },
+  { grade: 10, min: 16000, max: 38640 },
+  { grade: 11, min: 12500, max: 30230 },
+  { grade: 12, min: 11300, max: 27300 },
+  { grade: 13, min: 11000, max: 26590 },
+  { grade: 14, min: 10200, max: 24680 },
+  { grade: 15, min:  9700, max: 23490 },
+  { grade: 16, min:  9300, max: 22490 },
+  { grade: 17, min:  9000, max: 21800 },
+  { grade: 18, min:  8800, max: 21310 },
+  { grade: 19, min:  8500, max: 20570 },
+  { grade: 20, min:  8250, max: 20010 }
+];
+
+/* বার্ষিক ইনক্রিমেন্টের হার — মূল বেতনের ৫%, ১ জুলাই কার্যকর */
+const INCREMENT_RATE = 0.05;
+
+/* বাড়ি ভাড়া ভাতা : এলাকাভেদে স্তর অনুযায়ী শতকরা হার ও সর্বনিম্ন টাকা */
+const HOUSE_RENT = {
+  dhaka: {
+    label: 'ঢাকা মেট্রোপলিটন এলাকা',
+    slabs: [
+      { upto: 10000,    rate: 0.65, min: 5600  },
+      { upto: 20000,    rate: 0.55, min: 6500  },
+      { upto: 35000,    rate: 0.50, min: 11000 },
+      { upto: Infinity, rate: 0.45, min: 17500 }
+    ]
+  },
+  divisional: {
+    label: 'বিভাগীয় শহর / গাজীপুর / নারায়ণগঞ্জ',
+    slabs: [
+      { upto: 10000,    rate: 0.55, min: 4600  },
+      { upto: 20000,    rate: 0.50, min: 5500  },
+      { upto: 35000,    rate: 0.45, min: 10000 },
+      { upto: Infinity, rate: 0.40, min: 15750 }
+    ]
+  },
+  district: {
+    label: 'জেলা শহর',
+    slabs: [
+      { upto: 10000,    rate: 0.50, min: 4200  },
+      { upto: 20000,    rate: 0.45, min: 5000  },
+      { upto: 35000,    rate: 0.40, min: 9000  },
+      { upto: Infinity, rate: 0.35, min: 14000 }
+    ]
+  },
+  other: {
+    label: 'অন্যান্য স্থান',
+    slabs: [
+      { upto: 10000,    rate: 0.45, min: 3800  },
+      { upto: 20000,    rate: 0.40, min: 4500  },
+      { upto: 35000,    rate: 0.35, min: 8000  },
+      { upto: Infinity, rate: 0.30, min: 12250 }
+    ]
+  }
+};
+
+/* নির্ধারিত হারের ভাতাসমূহ (মাসিক) */
+const FIXED_ALLOWANCES = {
+  medical:      { label: 'চিকিৎসা ভাতা',   amount: 1500, auto: true  },
+  education:    { label: 'শিক্ষা সহায়ক ভাতা', perChild: 500, maxChildren: 2 },
+  tiffin:       { label: 'টিফিন ভাতা',      amount: 200,  auto: false },
+  conveyance:   { label: 'যাতায়াত ভাতা',    amount: 300,  auto: false },
+  washing:      { label: 'ধোলাই ভাতা',      amount: 100,  auto: false }
+};
+
+/* বিশেষ প্রণোদনা / মহার্ঘ ভাতা — প্রজ্ঞাপনভেদে পরিবর্তনশীল।
+   গ্রেড অনুযায়ী শতকরা হার ও সর্বনিম্ন টাকা। */
+const SPECIAL_INCENTIVE = {
+  label: 'বিশেষ প্রণোদনা ভাতা',
+  tiers: [
+    { fromGrade: 1,  toGrade: 9,  rate: 0.10, min: 1000 },
+    { fromGrade: 10, toGrade: 20, rate: 0.15, min: 1000 }
+  ]
+};
+
+/* উৎসব ও বৈশাখী ভাতা — মূল বেতনের শতকরা হারে, বছরে নির্দিষ্ট সংখ্যকবার */
+const BONUSES = {
+  festival:  { label: 'উৎসব ভাতা',   rate: 1.00, timesPerYear: 2 },
+  boishakhi: { label: 'বৈশাখী ভাতা',  rate: 0.20, timesPerYear: 1 }
+};
+
+/* কর্তনসমূহ */
+const DEDUCTIONS = {
+  gpfRates:      [0, 0.05, 0.10, 0.15, 0.20, 0.25],
+  welfareFund:   { label: 'কল্যাণ তহবিল',     amount: 50 },
+  jointInsurance:{ label: 'যৌথবীমা',          amount: 100 },
+  revenueStamp:  { label: 'রাজস্ব স্ট্যাম্প',  amount: 10 }
+};
+
+/* আয়কর স্ল্যাব (পুরুষ / সাধারণ করদাতা) — বার্ষিক */
+const TAX = {
+  exemptionLimit: 375000,
+  slabs: [
+    { width: 100000,   rate: 0.05 },
+    { width: 400000,   rate: 0.10 },
+    { width: 500000,   rate: 0.15 },
+    { width: 500000,   rate: 0.20 },
+    { width: Infinity, rate: 0.25 }
+  ],
+  /* বেতন খাতে অব্যাহতি : মোট আয়ের এক-তৃতীয়াংশ অথবা নিচের সীমা, যেটি কম */
+  salaryExemption: { fraction: 1 / 3, cap: 450000 },
+  minimumTax: 5000,
+  extraExemption: {
+    female:   50000,   /* মহিলা ও ৬৫+ বছর বয়সী করদাতা */
+    disabled: 100000,
+    freedomFighter: 125000
+  }
+};
+
+/* পেনশন : চাকরিকালের বছর অনুযায়ী মূল বেতনের শতকরা হার */
+const PENSION = {
+  minServiceYears: 5,
+  fullServiceYears: 25,
+  table: [
+    { years: 5,  percent: 21 }, { years: 6,  percent: 25 },
+    { years: 7,  percent: 29 }, { years: 8,  percent: 33 },
+    { years: 9,  percent: 37 }, { years: 10, percent: 41 },
+    { years: 11, percent: 45 }, { years: 12, percent: 49 },
+    { years: 13, percent: 53 }, { years: 14, percent: 57 },
+    { years: 15, percent: 61 }, { years: 16, percent: 65 },
+    { years: 17, percent: 69 }, { years: 18, percent: 73 },
+    { years: 19, percent: 77 }, { years: 20, percent: 81 },
+    { years: 21, percent: 83 }, { years: 22, percent: 85 },
+    { years: 23, percent: 87 }, { years: 24, percent: 89 },
+    { years: 25, percent: 90 }
+  ],
+  surrenderFraction: 0.5,   /* অর্ধেক পেনশন সমর্পণ */
+  gratuityRate: 230,        /* সমর্পিত ১ টাকার বিপরীতে গ্র্যাচুইটি */
+  pensionerMedical: 2500,   /* পেনশনারের মাসিক চিকিৎসা ভাতা */
+  pensionIncreaseRate: 0.05 /* বার্ষিক পেনশন বৃদ্ধি */
+};
+
+/* Node ও ব্রাউজার — দুই পরিবেশেই একই তথ্য রপ্তানি */
+(function (scope) {
+  const bundle = { PAY_SCALE_YEAR, GRADES, INCREMENT_RATE, HOUSE_RENT,
+    FIXED_ALLOWANCES, SPECIAL_INCENTIVE, BONUSES, DEDUCTIONS, TAX, PENSION };
+  if (typeof module !== 'undefined') module.exports = bundle;
+  else scope.SBD_DATA = bundle;
+})(typeof self !== 'undefined' ? self : this);
+
+</script>
+<script>
+/*
+ * calc.js — সব হিসাবের বিশুদ্ধ (pure) ফাংশন। DOM-এর উপর নির্ভরশীল নয়,
+ * তাই ব্রাউজার ও Node দুই জায়গাতেই একইভাবে চলে ও পরীক্ষা করা যায়।
+ */
+(function (root, factory) {
+  const D = (typeof module !== 'undefined') ? require('./data.js') : root.SBD_DATA;
+  const api = factory(D);
+  if (typeof module !== 'undefined') module.exports = api;
+  else root.Calc = api;
+})(typeof self !== 'undefined' ? self : this, function (D) {
+  'use strict';
+
+  const taka = n => Math.round(n);
+  const gradeInfo = g => D.GRADES.find(x => x.grade === Number(g)) || D.GRADES[0];
+
+  /* ---------- মূল বেতন ---------- */
+
+  /* ধাপ (step) ০ অর্থ শুরুর ধাপ; প্রতি ধাপে ৫% ইনক্রিমেন্ট, সর্বোচ্চ সীমায় থেমে যায় */
+  function basicAtStep(grade, step) {
+    const g = gradeInfo(grade);
+    let basic = g.min;
+    for (let i = 0; i < Number(step || 0); i++) {
+      const next = basic + basic * D.INCREMENT_RATE;
+      if (Math.round(next) > g.max) { basic = g.max; break; }
+      basic = Math.round(next);
+    }
+    return taka(basic);
+  }
+
+  /* একটি গ্রেডের সম্পূর্ণ ধাপ তালিকা (বেতন স্কেল টেবিলের জন্য) */
+  function stepsForGrade(grade) {
+    const g = gradeInfo(grade);
+    const steps = [];
+    let basic = g.min, i = 0;
+    while (true) {
+      steps.push({ step: i, basic: taka(basic) });
+      if (basic >= g.max || i > 40) break;
+      const next = Math.round(basic + basic * D.INCREMENT_RATE);
+      basic = next > g.max ? g.max : next;
+      i++;
+    }
+    return steps;
+  }
+
+  /* বার্ষিক ইনক্রিমেন্ট প্রক্ষেপণ */
+  function incrementProjection(grade, basic, years) {
+    const g = gradeInfo(grade);
+    const rows = [];
+    let current = taka(basic);
+    for (let y = 0; y <= Number(years); y++) {
+      const inc = y === 0 ? 0 : Math.min(Math.round(current * D.INCREMENT_RATE), Math.max(0, g.max - current));
+      current = current + inc;
+      rows.push({ year: y, increment: inc, basic: current, capped: current >= g.max });
+    }
+    return rows;
+  }
+
+  /* ---------- ভাতা ---------- */
+
+  function houseRent(basic, area) {
+    const cfg = D.HOUSE_RENT[area] || D.HOUSE_RENT.other;
+    const slab = cfg.slabs.find(s => basic <= s.upto);
+    return { amount: taka(Math.max(basic * slab.rate, slab.min)), rate: slab.rate, floor: slab.min, areaLabel: cfg.label };
+  }
+
+  function specialIncentive(grade, basic) {
+    const tier = D.SPECIAL_INCENTIVE.tiers.find(t => grade >= t.fromGrade && grade <= t.toGrade);
+    if (!tier) return { amount: 0, rate: 0 };
+    return { amount: taka(Math.max(basic * tier.rate, tier.min)), rate: tier.rate };
+  }
+
+  function educationAllowance(children) {
+    const c = Math.min(Math.max(Number(children || 0), 0), D.FIXED_ALLOWANCES.education.maxChildren);
+    return taka(c * D.FIXED_ALLOWANCES.education.perChild);
+  }
+
+  /* ---------- আয়কর ---------- */
+
+  function annualTax(annualIncome, opts) {
+    opts = opts || {};
+    const ex = D.TAX.salaryExemption;
+    const exempt = Math.min(annualIncome * ex.fraction, ex.cap);
+    let taxable = Math.max(0, annualIncome - exempt);
+
+    let limit = D.TAX.exemptionLimit;
+    if (opts.category && D.TAX.extraExemption[opts.category]) limit += D.TAX.extraExemption[opts.category];
+
+    let remaining = Math.max(0, taxable - limit);
+    let tax = 0;
+    for (const slab of D.TAX.slabs) {
+      if (remaining <= 0) break;
+      const part = Math.min(remaining, slab.width);
+      tax += part * slab.rate;
+      remaining -= part;
+    }
+    tax = Math.round(tax);
+    if (tax > 0 && tax < D.TAX.minimumTax) tax = D.TAX.minimumTax;
+    return { exempt: taka(exempt), taxableIncome: taka(taxable), exemptionLimit: limit, annualTax: tax, monthlyTax: Math.round(tax / 12) };
+  }
+
+  /* ---------- মাসিক বেতন বিবরণী ---------- */
+  /*
+   * input: { grade, step | basic, area, children, tiffin, conveyance, washing,
+   *          gpfRate, welfare, insurance, taxCategory, otherAllowance, otherDeduction }
+   */
+  function salaryBreakdown(input) {
+    const grade = Number(input.grade);
+    const basic = input.basic ? taka(input.basic) : basicAtStep(grade, input.step);
+
+    const hr = houseRent(basic, input.area);
+    const si = specialIncentive(grade, basic);
+    const F = D.FIXED_ALLOWANCES;
+
+    const allowances = [
+      { key: 'houseRent',  label: 'বাড়ি ভাড়া ভাতা', amount: hr.amount,
+        note: Math.round(hr.rate * 100) + '% হারে, সর্বনিম্ন ' + hr.floor + ' টাকা' },
+      { key: 'medical',    label: F.medical.label,    amount: F.medical.amount, note: 'নির্ধারিত' },
+      { key: 'education',  label: F.education.label,  amount: educationAllowance(input.children),
+        note: F.education.perChild + ' টাকা হারে, সর্বোচ্চ ' + F.education.maxChildren + ' সন্তান' },
+      { key: 'tiffin',     label: F.tiffin.label,     amount: input.tiffin ? F.tiffin.amount : 0, note: 'নির্ধারিত' },
+      { key: 'conveyance', label: F.conveyance.label, amount: input.conveyance ? F.conveyance.amount : 0, note: 'নির্ধারিত' },
+      { key: 'washing',    label: F.washing.label,    amount: input.washing ? F.washing.amount : 0, note: 'নির্ধারিত' },
+      { key: 'special',    label: D.SPECIAL_INCENTIVE.label, amount: si.amount,
+        note: si.rate ? Math.round(si.rate * 100) + '%' : '—' },
+      { key: 'other',      label: 'অন্যান্য ভাতা',    amount: taka(input.otherAllowance || 0), note: 'নিজস্ব এন্ট্রি' }
+    ].filter(a => a.amount > 0);
+
+    const totalAllowance = allowances.reduce((s, a) => s + a.amount, 0);
+    const gross = basic + totalAllowance;
+
+    /* করযোগ্য বার্ষিক আয় : মাসিক মোট × ১২ + উৎসব ও বৈশাখী ভাতা */
+    const bonusYearly = Math.round(basic * D.BONUSES.festival.rate * D.BONUSES.festival.timesPerYear)
+                      + Math.round(basic * D.BONUSES.boishakhi.rate * D.BONUSES.boishakhi.timesPerYear);
+    const tax = annualTax(gross * 12 + bonusYearly, { category: input.taxCategory });
+
+    const gpfRate = Number(input.gpfRate || 0);
+    const DD = D.DEDUCTIONS;
+    const deductions = [
+      { key: 'gpf',       label: 'সাধারণ ভবিষ্য তহবিল (GPF)', amount: taka(basic * gpfRate),
+        note: Math.round(gpfRate * 100) + '%' },
+      { key: 'welfare',   label: DD.welfareFund.label,    amount: input.welfare   ? DD.welfareFund.amount    : 0, note: 'নির্ধারিত' },
+      { key: 'insurance', label: DD.jointInsurance.label, amount: input.insurance ? DD.jointInsurance.amount : 0, note: 'নির্ধারিত' },
+      { key: 'tax',       label: 'আয়কর (মাসিক কিস্তি)',   amount: tax.monthlyTax, note: 'বার্ষিক মোট ' + tax.annualTax + ' টাকা' },
+      { key: 'stamp',     label: DD.revenueStamp.label,   amount: DD.revenueStamp.amount, note: 'নির্ধারিত' },
+      { key: 'other',     label: 'অন্যান্য কর্তন',         amount: taka(input.otherDeduction || 0), note: 'নিজস্ব এন্ট্রি' }
+    ].filter(d => d.amount > 0);
+
+    const totalDeduction = deductions.reduce((s, d) => s + d.amount, 0);
+
+    return {
+      grade, basic, areaLabel: hr.areaLabel,
+      allowances, deductions,
+      totalAllowance, gross, totalDeduction,
+      net: gross - totalDeduction,
+      tax,
+      bonuses: {
+        festival:  { label: D.BONUSES.festival.label,  each: Math.round(basic * D.BONUSES.festival.rate),  times: D.BONUSES.festival.timesPerYear },
+        boishakhi: { label: D.BONUSES.boishakhi.label, each: Math.round(basic * D.BONUSES.boishakhi.rate), times: D.BONUSES.boishakhi.timesPerYear },
+        yearlyTotal: bonusYearly
+      },
+      yearly: { gross: gross * 12 + bonusYearly, net: (gross - totalDeduction) * 12 + bonusYearly }
+    };
+  }
+
+  /* ---------- পেনশন ও গ্র্যাচুইটি ---------- */
+
+  function pensionPercent(years) {
+    const y = Math.floor(Number(years));
+    if (y < D.PENSION.minServiceYears) return 0;
+    if (y >= D.PENSION.fullServiceYears) return 90;
+    const row = D.PENSION.table.filter(r => r.years <= y).pop();
+    return row ? row.percent : 0;
+  }
+
+  function pensionBreakdown(lastBasic, serviceYears) {
+    const basic = taka(lastBasic);
+    const percent = pensionPercent(serviceYears);
+    if (percent === 0) {
+      return { eligible: false, percent: 0, grossPension: 0, surrendered: 0,
+               gratuity: 0, monthlyPension: 0, medical: 0, totalMonthly: 0,
+               festivalBonus: 0, minYears: D.PENSION.minServiceYears };
+    }
+    const grossPension = Math.round(basic * percent / 100);
+    const surrendered  = Math.round(grossPension * D.PENSION.surrenderFraction);
+    const gratuity     = surrendered * D.PENSION.gratuityRate;
+    const monthly      = grossPension - surrendered;
+    return {
+      eligible: true, percent, grossPension, surrendered, gratuity,
+      monthlyPension: monthly,
+      medical: D.PENSION.pensionerMedical,
+      totalMonthly: monthly + D.PENSION.pensionerMedical,
+      festivalBonus: monthly * D.BONUSES.festival.timesPerYear,
+      gratuityRate: D.PENSION.gratuityRate
+    };
+  }
+
+  return { gradeInfo, basicAtStep, stepsForGrade, incrementProjection, houseRent,
+           specialIncentive, educationAllowance, annualTax, salaryBreakdown,
+           pensionPercent, pensionBreakdown };
+});
+
+</script>
+<script>
+/*
+ * ui.js — সব পেজের সাধারণ আচরণ: বাংলা সংখ্যা, থিম, মেনু, এবং
+ * প্রতিটি ক্যালকুলেটর পেজের ফর্ম-থেকে-ফলাফল সংযোগ।
+ */
+(function () {
+  'use strict';
+  const C = window.Calc;
+  const { GRADES, HOUSE_RENT, DEDUCTIONS } = window.SBD_DATA;
+
+  /* ---------- সাধারণ সহায়ক ---------- */
+  const BN = ['০','১','২','৩','৪','৫','৬','৭','৮','৯'];
+  const bn = s => String(s).replace(/\d/g, d => BN[d]);
+  const grouped = n => Math.round(n).toLocaleString('en-IN');   /* ১,২৩,৪৫৬ ধাঁচ */
+  const tk = n => '৳ ' + bn(grouped(n));
+  const pct = r => bn(Math.round(r * 100)) + '%';
+  const $  = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const val = id => { const el = $('#' + id); return el ? el.value : ''; };
+  const num = id => Number(val(id) || 0);
+  const chk = id => { const el = $('#' + id); return !!(el && el.checked); };
+
+  window.UI = { bn, tk, grouped, pct };
+
+  /* ---------- হেডার: মেনু ও থিম ---------- */
+  function initChrome() {
+    const nav = $('#nav'), toggle = $('#navToggle');
+    if (toggle) toggle.addEventListener('click', () => {
+      const open = nav.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', String(open));
+    });
+
+    /* মেনুর কোনো লিঙ্কে ক্লিক করলেই মোবাইল মেনু বন্ধ হবে */
+    $$('.nav a').forEach(a => a.addEventListener('click', () => {
+      if (nav) nav.classList.remove('open');
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    }));
+
+    const saved = (function () { try { return localStorage.getItem('sbd-theme'); } catch (e) { return null; } })();
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+    const tb = $('#themeToggle');
+    if (tb) tb.addEventListener('click', () => {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark'
+        || (!document.documentElement.getAttribute('data-theme')
+            && matchMedia('(prefers-color-scheme: dark)').matches);
+      const next = dark ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('sbd-theme', next); } catch (e) {}
+    });
+
+    function route() {
+      const id = (location.hash.replace('#', '') || 'home').split('?')[0];
+      const target = document.getElementById('page-' + id) ? id : 'home';
+      $$('.page').forEach(s => { s.hidden = (s.id !== 'page-' + target); });
+      $$('.nav a').forEach(a => {
+        if (a.getAttribute('href') === '#' + target) a.setAttribute('aria-current', 'page');
+        else a.removeAttribute('aria-current');
+      });
+      if (nav) nav.classList.remove('open');
+      window.scrollTo(0, 0);
+      document.title = (({home:'হোম',calculator:'বেতন ক্যালকুলেটর',payscale:'বেতন স্কেল',
+        increment:'ইনক্রিমেন্ট',pension:'পেনশন',about:'পরিচিতি'})[target]) + ' · বেতন হিসাব';
+    }
+    addEventListener('hashchange', route);
+    route();
+  }
+
+  /* গ্রেড ও ধাপের ড্রপডাউন পূরণ */
+  function fillGrades(selectId, stepId) {
+    const sel = $('#' + selectId);
+    if (!sel) return;
+    GRADES.forEach(g => {
+      const o = document.createElement('option');
+      o.value = g.grade;
+      o.textContent = bn(g.grade) + ' নং গ্রেড  (' + bn(grouped(g.min)) + '–' + bn(grouped(g.max)) + ')';
+      sel.appendChild(o);
+    });
+    sel.value = 9;
+    if (stepId) {
+      const refill = () => {
+        const steps = C.stepsForGrade(Number(sel.value));
+        const st = $('#' + stepId), keep = Math.min(Number(st.value || 0), steps.length - 1);
+        st.innerHTML = '';
+        steps.forEach(s => {
+          const o = document.createElement('option');
+          o.value = s.step;
+          o.textContent = (s.step === 0 ? 'শুরুর ধাপ' : bn(s.step) + ' নং ধাপ') + ' — ' + tk(s.basic);
+          st.appendChild(o);
+        });
+        st.value = keep;
+      };
+      sel.addEventListener('change', refill);
+      refill();
+    }
+  }
+
+  function rowsHtml(items) {
+    return items.map(i =>
+      '<tr><td>' + i.label + (i.note ? '<span class="note">' + bn(i.note) + '</span>' : '') +
+      '</td><td class="num">' + tk(i.amount) + '</td></tr>').join('');
+  }
+
+  /* ---------- পেজ: বেতন ক্যালকুলেটর ---------- */
+  function initSalary() {
+    const form = $('#salaryForm');
+    if (!form) return;
+    fillGrades('grade', 'step');
+
+    const areaSel = $('#area');
+    Object.keys(HOUSE_RENT).forEach(k => {
+      const o = document.createElement('option');
+      o.value = k; o.textContent = HOUSE_RENT[k].label;
+      areaSel.appendChild(o);
+    });
+    areaSel.value = 'dhaka';
+
+    const gpfSel = $('#gpfRate');
+    DEDUCTIONS.gpfRates.forEach(r => {
+      const o = document.createElement('option');
+      o.value = r; o.textContent = r === 0 ? 'কর্তন নেই' : pct(r) + ' (মূল বেতনের)';
+      gpfSel.appendChild(o);
+    });
+    gpfSel.value = '0.1';
+
+    function run() {
+      const manual = chk('useManualBasic');
+      $('#manualBasicWrap').style.display = manual ? '' : 'none';
+      $('#stepWrap').style.display = manual ? 'none' : '';
+
+      const r = C.salaryBreakdown({
+        grade: num('grade'),
+        step: num('step'),
+        basic: manual ? num('manualBasic') : 0,
+        area: val('area'),
+        children: num('children'),
+        tiffin: chk('tiffin'), conveyance: chk('conveyance'), washing: chk('washing'),
+        gpfRate: Number(val('gpfRate')),
+        welfare: chk('welfare'), insurance: chk('insurance'),
+        taxCategory: val('taxCategory'),
+        otherAllowance: num('otherAllowance'),
+        otherDeduction: num('otherDeduction')
+      });
+
+      $('#netAmount').textContent = tk(r.net);
+      $('#chipGrade').textContent = bn(r.grade) + ' নং গ্রেড';
+      $('#chipBasic').textContent = 'মূল বেতন ' + tk(r.basic);
+      $('#chipArea').textContent = r.areaLabel;
+
+      $('#breakdownBody').innerHTML =
+        '<tr class="sum"><td>মূল বেতন</td><td class="num">' + tk(r.basic) + '</td></tr>' +
+        rowsHtml(r.allowances) +
+        '<tr class="sum"><td>মোট ভাতা</td><td class="num">' + tk(r.totalAllowance) + '</td></tr>' +
+        '<tr class="sum"><td>সর্বমোট (Gross)</td><td class="num">' + tk(r.gross) + '</td></tr>' +
+        rowsHtml(r.deductions) +
+        '<tr class="sum"><td>মোট কর্তন</td><td class="num">' + tk(r.totalDeduction) + '</td></tr>' +
+        '<tr class="net"><td>নিট প্রাপ্য বেতন</td><td class="num">' + tk(r.net) + '</td></tr>';
+
+      $('#bonusBody').innerHTML =
+        '<tr><td>' + r.bonuses.festival.label + '<span class="note">বছরে ' + bn(r.bonuses.festival.times) +
+          ' বার, প্রতিবার মূল বেতনের ১০০%</span></td><td class="num">' + tk(r.bonuses.festival.each) + '</td></tr>' +
+        '<tr><td>' + r.bonuses.boishakhi.label + '<span class="note">বছরে ' + bn(r.bonuses.boishakhi.times) +
+          ' বার, মূল বেতনের ২০%</span></td><td class="num">' + tk(r.bonuses.boishakhi.each) + '</td></tr>' +
+        '<tr class="sum"><td>বছরে মোট বোনাস</td><td class="num">' + tk(r.bonuses.yearlyTotal) + '</td></tr>';
+
+      $('#yearGross').textContent = tk(r.yearly.gross);
+      $('#yearNet').textContent   = tk(r.yearly.net);
+      $('#taxAnnual').textContent = tk(r.tax.annualTax);
+      $('#taxExempt').textContent = tk(r.tax.exempt);
+      $('#taxLimit').textContent  = tk(r.tax.exemptionLimit);
+    }
+
+    form.addEventListener('input', run);
+    form.addEventListener('change', run);
+    form.addEventListener('submit', e => { e.preventDefault(); run(); });
+    $('#printBtn').addEventListener('click', () => window.print());
+    run();
+  }
+
+  /* ---------- পেজ: বেতন স্কেল টেবিল ---------- */
+  function initScale() {
+    const host = $('#scaleTable');
+    if (!host) return;
+    const maxSteps = Math.max.apply(null, GRADES.map(g => C.stepsForGrade(g.grade).length));
+    let head = '<tr><th>গ্রেড</th><th>শুরু</th>';
+    for (let i = 1; i < maxSteps; i++) head += '<th>ধাপ ' + bn(i) + '</th>';
+    head += '<th>সর্বোচ্চ</th></tr>';
+
+    const body = GRADES.map(g => {
+      const steps = C.stepsForGrade(g.grade);
+      let row = '<tr><td><strong>' + bn(g.grade) + '</strong></td>';
+      for (let i = 0; i < maxSteps; i++) {
+        row += '<td class="num">' + (steps[i] ? bn(grouped(steps[i].basic)) : '—') + '</td>';
+      }
+      return row + '<td class="num"><strong>' + bn(grouped(g.max)) + '</strong></td></tr>';
+    }).join('');
+
+    host.innerHTML = '<thead>' + head + '</thead><tbody>' + body + '</tbody>';
+  }
+
+  /* ---------- পেজ: ইনক্রিমেন্ট ---------- */
+  function initIncrement() {
+    const form = $('#incrementForm');
+    if (!form) return;
+    fillGrades('incGrade', 'incStep');
+
+    function run() {
+      const grade = num('incGrade');
+      const basic = chk('incManual') ? num('incBasic') : C.basicAtStep(grade, num('incStep'));
+      $('#incBasicWrap').style.display = chk('incManual') ? '' : 'none';
+      $('#incStepWrap').style.display  = chk('incManual') ? 'none' : '';
+
+      const years = Math.min(Math.max(num('incYears') || 5, 1), 25);
+      const rows = C.incrementProjection(grade, basic, years);
+      const last = rows[rows.length - 1];
+
+      $('#incBody').innerHTML = rows.map(r =>
+        '<tr' + (r.year === rows.length - 1 ? ' class="sum"' : '') + '>' +
+        '<td>' + (r.year === 0 ? 'বর্তমান' : bn(r.year) + ' বছর পর') + '</td>' +
+        '<td class="num">' + (r.increment ? tk(r.increment) : '—') + '</td>' +
+        '<td class="num">' + tk(r.basic) + (r.capped ? '<span class="note">সর্বোচ্চ সীমায়</span>' : '') + '</td></tr>'
+      ).join('');
+
+      $('#incNow').textContent   = tk(basic);
+      $('#incFuture').textContent = tk(last.basic);
+      $('#incTotal').textContent  = tk(last.basic - basic);
+      $('#incCapNote').style.display = last.capped ? '' : 'none';
+    }
+
+    form.addEventListener('input', run);
+    form.addEventListener('change', run);
+    form.addEventListener('submit', e => { e.preventDefault(); run(); });
+    run();
+  }
+
+  /* ---------- পেজ: পেনশন ---------- */
+  function initPension() {
+    const form = $('#pensionForm');
+    if (!form) return;
+
+    function run() {
+      const basic = num('penBasic');
+      const years = num('penYears');
+      const r = C.pensionBreakdown(basic, years);
+
+      const warn = $('#penWarn');
+      warn.style.display = r.eligible ? 'none' : '';
+      $('#penResult').style.display = r.eligible ? '' : 'none';
+      if (!r.eligible) {
+        warn.innerHTML = '<strong>পেনশন প্রযোজ্য নয়।</strong> পেনশন পেতে কমপক্ষে ' +
+          bn(r.minYears) + ' বছর চাকরি প্রয়োজন।';
+        return;
+      }
+
+      $('#penMonthly').textContent = tk(r.totalMonthly);
+      $('#penPercent').textContent = bn(r.percent) + '%';
+      $('#penGratuity').textContent = tk(r.gratuity);
+
+      $('#penBody').innerHTML =
+        '<tr><td>সর্বশেষ মূল বেতন</td><td class="num">' + tk(basic) + '</td></tr>' +
+        '<tr><td>পেনশনের হার<span class="note">' + bn(Math.floor(years)) + ' বছর চাকরিকাল</span></td>' +
+          '<td class="num">' + bn(r.percent) + '%</td></tr>' +
+        '<tr class="sum"><td>মোট পেনশন</td><td class="num">' + tk(r.grossPension) + '</td></tr>' +
+        '<tr><td>সমর্পিত অংশ (৫০%)</td><td class="num">' + tk(r.surrendered) + '</td></tr>' +
+        '<tr><td>আনুতোষিক / গ্র্যাচুইটি<span class="note">সমর্পিত ১ টাকার বিপরীতে ' +
+          bn(r.gratuityRate) + ' টাকা হারে (এককালীন)</span></td><td class="num">' + tk(r.gratuity) + '</td></tr>' +
+        '<tr><td>মাসিক নিট পেনশন</td><td class="num">' + tk(r.monthlyPension) + '</td></tr>' +
+        '<tr><td>চিকিৎসা ভাতা (পেনশনার)</td><td class="num">' + tk(r.medical) + '</td></tr>' +
+        '<tr class="net"><td>মাসিক সর্বমোট প্রাপ্য</td><td class="num">' + tk(r.totalMonthly) + '</td></tr>' +
+        '<tr><td>উৎসব ভাতা (বছরে ২ বার, মোট)</td><td class="num">' + tk(r.festivalBonus) + '</td></tr>';
+    }
+
+    form.addEventListener('input', run);
+    form.addEventListener('change', run);
+    form.addEventListener('submit', e => { e.preventDefault(); run(); });
+    run();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    initChrome(); initSalary(); initScale(); initIncrement(); initPension();
+  });
+})();
+
+</script>
+</body>
+</html>
