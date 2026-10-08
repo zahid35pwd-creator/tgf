@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep the classic action bar layout instead of Android 15's enforced edge-to-edge. -->
+    <style name="AppTheme" parent="BaseTheme">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>

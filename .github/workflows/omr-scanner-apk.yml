@@ -1,0 +1,59 @@
+name: OMR Scanner APK
+
+on:
+  push:
+    paths:
+      - "omr-scanner/**"
+      - ".github/workflows/omr-scanner-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: omr-scanner-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: omr-scanner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Test the OMR engine
+        run: ./gradlew --no-daemon -p omr-core test
+
+      - name: Build the APK
+        run: ./gradlew --no-daemon :app:assembleRelease
+
+      - name: Collect files
+        run: cp app/build/outputs/apk/release/app-release.apk OMR-Scanner.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OMR-Scanner
+          path: |
+            omr-scanner/OMR-Scanner.apk
+            omr-scanner/sheets/*.pdf
+
+      # A fixed release tag, replaced on every build, so the APK has a stable download page for phones.
+      - name: Publish the "omr-scanner-latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete omr-scanner-latest --cleanup-tag --yes || true
+          gh release create omr-scanner-latest OMR-Scanner.apk sheets/*.pdf \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "OMR Scanner (latest build)" \
+            --notes "Android app built from ${GITHUB_SHA::7} (${GITHUB_REF_NAME}). On your phone, download OMR-Scanner.apk and open it to install. The PDFs are blank answer sheets to print."
