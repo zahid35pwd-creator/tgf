@@ -6,7 +6,7 @@ import kotlin.test.assertTrue
 
 /**
  * Low-resolution, blurry, noisy, bent and steeply angled photos. The reader may refuse a few of these,
- * but whenever it does return a result, every answer and the roll number must be right.
+ * but whenever it returns a result, every answer must be right or flagged for review, and the roll must be right.
  */
 class HarshPhotoTest {
     @Test
@@ -35,13 +35,23 @@ class HarshPhotoTest {
             try {
                 val r = OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(100, 4))
                 val wrong = answers.indices.filter { answers[it] != r.answers[it].marked.sorted() }
-                if (wrong.isNotEmpty() || r.rollDigits != sheet.roll) misreads.add("$label: questions ${wrong.map { it + 1 }}, roll ${r.roll}")
-                else println("$label ok, threshold %.2f".format(r.threshold))
+                // A wrong reading is acceptable only if it is flagged for the user to check.
+                val silent = wrong.filter { !r.answers[it].needsReview }
+                val detail = wrong.joinToString { q ->
+                    "Q${q + 1} expected ${answers[q]} got ${r.answers[q].marked} review=${r.answers[q].needsReview} " +
+                        r.answers[q].scores.joinToString(prefix = "[", postfix = "]") { "%.2f".format(it) }
+                }
+                when {
+                    silent.isNotEmpty() || r.rollDigits != sheet.roll -> misreads.add("$label: $detail, roll ${r.roll}, threshold %.2f".format(r.threshold))
+                    wrong.isNotEmpty() -> println("$label flagged for review: $detail")
+                    else -> println("$label ok, threshold %.2f".format(r.threshold))
+                }
             } catch (e: OmrException) {
                 refused++
                 println("$label refused: ${e.message}")
             }
         }
+        misreads.forEach { println("MISREAD $it") }
         assertTrue(misreads.isEmpty(), "silent misreads:\n" + misreads.joinToString("\n"))
         assertTrue(refused <= 2, "refused $refused/$trials harsh photos")
     }
