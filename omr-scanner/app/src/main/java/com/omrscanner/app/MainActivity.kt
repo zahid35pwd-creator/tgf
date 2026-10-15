@@ -1,191 +1,136 @@
 package com.omrscanner.app
 
-import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
-import android.text.InputType
-import android.widget.EditText
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.RadioButton
-import android.widget.RadioGroup
-import android.widget.TextView
-import com.omrscanner.core.SheetSpec
-import com.omrscanner.core.SheetTemplate
+import com.omrscanner.app.ui.Icon
+import com.omrscanner.app.ui.IconDrawable
 
-class MainActivity : Activity() {
-    private lateinit var store: Store
-    private lateinit var examSummary: TextView
-    private lateinit var keySummary: TextView
-    private lateinit var historyButton: android.widget.Button
-    private lateinit var printButton: android.widget.Button
+/** The app's home: four tabs (Home, Answer key, Results, Settings) under a bottom navigation bar. */
+class MainActivity : BaseActivity() {
+    enum class Tab(val label: String, val icon: Icon) {
+        HOME("Home", Icon.HOME), KEY("Answer key", Icon.KEY), RESULTS("Results", Icon.CHART), SETTINGS("Settings", Icon.SETTINGS)
+    }
+
+    lateinit var store: Store
+        private set
+    private lateinit var content: FrameLayout
+    private lateinit var nav: LinearLayout
+    private var tab = Tab.HOME
+
+    /** Set while a picture is being taken for the answer key rather than for grading. */
+    private var scanningKey = false
+
+    /** The key tab's chosen set, kept across tab switches. */
+    var keySet: Int? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = Store(this)
-        title = "OMR Scanner"
-        val page = scrollingPage()
+        tab = savedInstanceState?.getString("tab")?.let { n -> Tab.entries.firstOrNull { it.name == n } } ?: Tab.HOME
+        scanningKey = savedInstanceState?.getBoolean("scanningKey") ?: false
 
-        page.add(text("Scan an answer sheet to get the result.", 16f, Ui.MUTED))
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Ui.BACKGROUND) }
+        content = FrameLayout(this)
+        root.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        nav = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(Ui.CARD)
+            elevation = dp(10).toFloat()
+            setPadding(dp(6), dp(8), dp(6), dp(10))
+        }
+        root.addView(View(this).apply { setBackgroundColor(Ui.DIVIDER) }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1))
+        root.addView(nav, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        setContentView(root)
 
-        val exam = card()
-        exam.add(text("Current exam", 13f, Ui.MUTED, bold = true), block(4))
-        examSummary = exam.add(text("", 16f), block(4)) as TextView
-        keySummary = exam.add(text("", 14f, Ui.MUTED), block(12)) as TextView
-        val row = horizontal()
-        row.add(button("Exam settings", ButtonStyle.SECONDARY) { editSettings() }, weighted().apply { marginEnd = dp(8) })
-        row.add(button("Answer key", ButtonStyle.SECONDARY) {
-            startActivity(Intent(this, AnswerKeyActivity::class.java))
-        }, weighted())
-        exam.add(row, block(0))
-        page.add(exam, block(16))
+        if (!store.onboarded) startActivity(Intent(this, OnboardingActivity::class.java))
+    }
 
-        page.add(button("Scan sheet with camera") { ImageSources.openCamera(this) })
-        page.add(button("Choose scanned picture") { ImageSources.openGallery(this) })
-        page.add(button("Check many sheets from a PDF") {
-            startActivity(Intent(this, BatchActivity::class.java))
-        }, block(16))
-
-        printButton = page.add(button("Print blank OMR sheet", ButtonStyle.SECONDARY) { SheetPrinter.print(this, store.settings.sheetSpec) }) as android.widget.Button
-        historyButton = page.add(button("Saved results", ButtonStyle.SECONDARY) {
-            startActivity(Intent(this, HistoryActivity::class.java))
-        }, block(20)) as android.widget.Button
-
-        val tips = card()
-        tips.add(text("Tips for a good scan", 15f, bold = true), block(6))
-        tips.add(
-            text(
-                "• Use this app's own sheet, a BCS or SSC/HSC sheet, or teach it any other OMR sheet from a blank copy (Exam settings → Add another OMR sheet type).\n" +
-                    "• Keep all 4 black corner squares in the picture.\n" +
-                    "• Let the sheet fill most of the photo, lying flat.\n" +
-                    "• Avoid strong shadows and glare.\n" +
-                    "• You can also share a picture to this app from your gallery or scanner app.",
-                14f, Ui.MUTED,
-            ),
-            block(0),
-        )
-        page.add(tips)
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("tab", tab.name)
+        outState.putBoolean("scanningKey", scanningKey)
     }
 
     override fun onResume() {
         super.onResume()
-        refresh()
+        show(tab, animate = false)
     }
 
-    private fun refresh() {
-        val s = store.settings
-        val name = s.examName.ifBlank { "Untitled exam" }
-        val negative = if (s.perWrong > 0) ", −${fmt(s.perWrong)} per wrong" else ""
-        examSummary.text = "$name\n${s.template.name}\n${s.questionCount} questions • options ${s.labelRange} • +${fmt(s.perCorrect)} per correct$negative"
-        val keyed = store.storedKey(null).count { it != null }
-        val sets = store.setsWithKeys()
-        keySummary.text = when {
-            sets.isNotEmpty() -> "Answer keys for set " + sets.joinToString(", ") { s.setName(it) } + if (keyed > 0) " and all other sets" else ""
-            keyed == 0 -> "Answer key not set yet"
-            else -> "Answer key: $keyed of ${s.questionCount} set"
+    fun show(t: Tab, animate: Boolean = true) {
+        tab = t
+        buildNav()
+        val view = when (t) {
+            Tab.HOME -> HomeTab(this).build()
+            Tab.KEY -> KeyTab(this).build()
+            Tab.RESULTS -> ResultsTab(this).build()
+            Tab.SETTINGS -> SettingsTab(this).build()
         }
-        printButton.visibility = if (s.template.printable) android.view.View.VISIBLE else android.view.View.GONE
-        val saved = store.history().size
-        historyButton.text = if (saved == 0) "Saved results" else "Saved results ($saved)"
+        content.removeAllViews()
+        content.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        if (animate) {
+            view.alpha = 0f
+            view.translationY = dp(8).toFloat()
+            view.animate().alpha(1f).translationY(0f).setDuration(160).start()
+        }
     }
 
-    private fun editSettings() {
-        val s = store.settings
-        val form = vertical(20)
-        fun field(label: String, value: String, type: Int): EditText {
-            form.add(text(label, 13f, Ui.MUTED), block(2))
-            val e = EditText(this).apply { setText(value); inputType = type; setSingleLine() }
-            form.add(e, block(10))
-            return e
-        }
-        form.add(text("Sheet type", 13f, Ui.MUTED), block(2))
-        val all = store.templates()
-        val types = RadioGroup(this).apply { orientation = LinearLayout.VERTICAL }
-        all.forEachIndexed { i, t -> types.addView(RadioButton(this).apply { text = if (t.custom) "${t.name} (learned)" else t.name; id = 100 + i }) }
-        types.check(100 + all.indexOfFirst { it.id == s.templateId }.coerceAtLeast(0))
-        form.add(types, block(4))
-        lateinit var dialog: AlertDialog
-        form.add(button("Add another OMR sheet type…", ButtonStyle.SECONDARY) {
-            dialog.dismiss()
-            startActivity(Intent(this, SheetSetupActivity::class.java))
-        }, block(4))
-        val delete = button("Delete this learned sheet type", ButtonStyle.DANGER) {
-            val t = all[types.checkedRadioButtonId - 100]
-            AlertDialog.Builder(this).setMessage("Delete \"${t.name}\" and its answer keys?")
-                .setPositiveButton("Delete") { _, _ -> store.deleteTemplate(t.id); dialog.dismiss(); refresh() }
-                .setNegativeButton("Cancel", null).show()
-        }
-        form.add(delete, block(10))
-        delete.visibility = if (s.template.custom) android.view.View.VISIBLE else android.view.View.GONE
-        val name = field("Exam name (printed on the sheet)", s.examName, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
-        val count = field("Number of questions", s.questionCount.toString(), InputType.TYPE_CLASS_NUMBER)
-        types.setOnCheckedChangeListener { _, id ->
-            count.setText(all[id - 100].maxQuestions.toString())
-            delete.visibility = if (all[id - 100].custom) android.view.View.VISIBLE else android.view.View.GONE
-        }
+    /** Rebuilds the current tab (after a change made on it). */
+    fun refresh() = show(tab, animate = false)
 
-        form.add(text("Options per question", 13f, Ui.MUTED), block(2))
-        val options = RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val four = RadioButton(this).apply { text = "4"; id = 4 }
-        val five = RadioButton(this).apply { text = "5"; id = 5 }
-        options.addView(four); options.addView(five)
-        options.check(if (s.optionCount == 5) 5 else 4)
-        form.add(options, block(10))
-
-        form.add(text("Option letters", 13f, Ui.MUTED), block(2))
-        val letters = RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val latin = RadioButton(this).apply { text = "A B C D"; id = 1 }
-        val bangla = RadioButton(this).apply { text = "ক খ গ ঘ"; id = 2 }
-        letters.addView(latin); letters.addView(bangla)
-        letters.check(if (s.banglaLabels) 2 else 1)
-        form.add(letters, block(10))
-
-        val decimal = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-        val correct = field("Marks per correct answer", fmt(s.perCorrect), decimal)
-        val wrong = field("Negative marks per wrong answer (0 for none)", fmt(s.perWrong), decimal)
-
-        dialog = AlertDialog.Builder(this)
-            .setTitle("Exam settings")
-            .setView(android.widget.ScrollView(this).apply { addView(form) })
-            .setPositiveButton("Save", null)
-            .setNegativeButton("Cancel", null)
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val template = all[types.checkedRadioButtonId - 100]
-                val n = count.text.toString().toIntOrNull()
-                val pc = correct.text.toString().toDoubleOrNull()
-                val pw = wrong.text.toString().ifBlank { "0" }.toDoubleOrNull()
-                when {
-                    n == null || n !in 1..template.maxQuestions -> count.error = "Enter 1 to ${template.maxQuestions} for this sheet"
-                    pc == null || pc <= 0 -> correct.error = "Enter a positive number"
-                    pw == null || pw < 0 -> wrong.error = "Enter 0 or more"
-                    else -> {
-                        val switched = template.id != s.templateId
-                        store.settings = ExamSettings(
-                            template = template,
-                            examName = name.text.toString().trim(),
-                            questionCount = n,
-                            optionCount = options.checkedRadioButtonId.coerceAtMost(template.maxOptions),
-                            // Board sheets print ক খ গ ঘ; default to them when switching to one.
-                            banglaLabels = if (switched) template.optionLabels == SheetSpec.BANGLA_LABELS else letters.checkedRadioButtonId == 2,
-                            perCorrect = pc,
-                            perWrong = pw,
-                        )
-                        dialog.dismiss()
-                        refresh()
-                    }
-                }
+    private fun buildNav() {
+        nav.removeAllViews()
+        for (t in Tab.entries) {
+            val on = t == tab
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(0, dp(2), 0, dp(2))
+                background = ripple(rounded(Color.TRANSPARENT, dp(16).toFloat()), dp(16).toFloat())
+                setOnClickListener { if (t != tab) show(t) }
             }
+            item.addView(ImageView(this).apply {
+                setImageDrawable(IconDrawable(t.icon, if (on) Ui.ON_PRIMARY_LIGHT else Ui.MUTED, dp(22)))
+                scaleType = ImageView.ScaleType.CENTER
+                background = if (on) rounded(Ui.PRIMARY_LIGHT, dp(16).toFloat()) else null
+            }, LinearLayout.LayoutParams(dp(60), dp(32)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(4) })
+            item.addView(text(t.label, 12f, if (on) Ui.TEXT else Ui.MUTED, on).apply { gravity = Gravity.CENTER }, wrap().apply { gravity = Gravity.CENTER_HORIZONTAL })
+            nav.addView(item, weighted())
         }
-        dialog.show()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (tab != Tab.HOME) show(Tab.HOME) else super.onBackPressed()
+    }
+
+    // ---- Pictures ----------------------------------------------------------------------------
+
+    fun scanSheet(camera: Boolean) {
+        scanningKey = false
+        if (camera) ImageSources.openCamera(this) else ImageSources.openGallery(this)
+    }
+
+    fun scanKey(camera: Boolean) {
+        scanningKey = true
+        if (camera) ImageSources.openCamera(this) else ImageSources.openGallery(this)
     }
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         val uri = ImageSources.resultUri(this, requestCode, resultCode, data) ?: return
-        startActivity(Intent(this, ScanActivity::class.java).setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+        startActivity(
+            Intent(this, ScanActivity::class.java).setData(uri)
+                .putExtra(ScanActivity.EXTRA_KEY_MODE, scanningKey)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+        )
     }
 }
 

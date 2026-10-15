@@ -46,19 +46,21 @@ class SavedResult(
     val multiple: Int,
     /** One character per question: A–E, '-' for blank, '*' for several marks. */
     val answers: String,
+    /** The key used, same format ('-' = not graded); empty for results saved before it was kept. */
+    val key: String = "",
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("time", time).put("exam", exam).put("roll", roll)
         .put("score", score).put("max", maxScore)
         .put("correct", correct).put("wrong", wrong).put("blank", blank).put("multiple", multiple)
-        .put("answers", answers)
+        .put("answers", answers).put("key", key)
 
     companion object {
         fun fromJson(o: JSONObject) = SavedResult(
             o.getLong("time"), o.optString("exam"), o.optString("roll"),
             o.getDouble("score"), o.getDouble("max"),
             o.optInt("correct"), o.optInt("wrong"), o.optInt("blank"), o.optInt("multiple"),
-            o.optString("answers"),
+            o.optString("answers"), o.optString("key"),
         )
     }
 }
@@ -158,4 +160,15 @@ class Store(context: Context) {
     }
 
     fun clearHistory() = prefs.edit().remove("history").apply()
+
+    /** Replaces all saved results (used to delete one and to undo). */
+    fun setHistory(results: List<SavedResult>) {
+        val arr = JSONArray()
+        for (r in results) arr.put(r.toJson())
+        prefs.edit().putString("history", arr.toString()).apply()
+    }
+
+    var onboarded: Boolean
+        get() = prefs.getBoolean("onboarded", false)
+        set(v) = prefs.edit().putBoolean("onboarded", v).apply()
 }

@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="BaseTheme" parent="android:Theme.Material.Light.DarkActionBar">
-        <item name="android:colorPrimary">#3949AB</item>
-        <item name="android:colorPrimaryDark">#283593</item>
-        <item name="android:colorAccent">#3949AB</item>
+    <!-- Screens draw their own app bar; colours come from Ui tokens at runtime. -->
+    <style name="BaseTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">#4338CA</item>
+        <item name="android:colorPrimaryDark">#F6F6FB</item>
+        <item name="android:colorAccent">#4338CA</item>
         <item name="android:windowBackground">@color/background</item>
+        <item name="android:windowContentTransitions">true</item>
     </style>
 
     <style name="AppTheme" parent="BaseTheme" />
 
-    <color name="background">#F3F4F8</color>
-    <color name="icon_background">#3949AB</color>
+    <color name="background">#F6F6FB</color>
+    <color name="icon_background">#4338CA</color>
 </resources>

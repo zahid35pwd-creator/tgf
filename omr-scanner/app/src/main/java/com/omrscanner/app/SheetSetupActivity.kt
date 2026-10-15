@@ -1,6 +1,5 @@
 package com.omrscanner.app
 
-import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Bitmap
@@ -15,14 +14,10 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
-import android.widget.CheckBox
-import android.widget.EditText
-import android.widget.ImageView
+import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.RadioButton
-import android.widget.RadioGroup
-import android.widget.TextView
+import com.omrscanner.app.ui.Icon
+import com.omrscanner.app.ui.ZoomImageView
 import com.omrscanner.core.Alignment
 import com.omrscanner.core.ArgbImage
 import com.omrscanner.core.GroupKind
@@ -37,7 +32,7 @@ import kotlin.math.max
  * Teaches the app a new OMR sheet design from a blank copy: the learner finds the bubbles, and the
  * teacher checks the result, names the number fields and saves it as a sheet type.
  */
-class SheetSetupActivity : Activity() {
+class SheetSetupActivity : BaseActivity() {
     private lateinit var store: Store
     private var learned: LearnedSheet? = null
     private var idGroup = -1
@@ -45,33 +40,57 @@ class SheetSetupActivity : Activity() {
     private var acrossRows = false
     private var bangla = false
     private var name = ""
-    private lateinit var preview: ImageView
+    private lateinit var preview: ZoomImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = Store(this)
-        title = "Add a sheet type"
         showIntro()
     }
 
+    /** 1 Choose file → 2 Check → 3 Save. */
+    private fun stepper(step: Int): View {
+        val row = horizontal().apply { setPadding(dp(4), dp(4), dp(4), dp(4)) }
+        listOf("Choose", "Check", "Save").forEachIndexed { i, label ->
+            val done = i < step
+            val on = i == step
+            val dot = text(if (done) "✓" else "${i + 1}", 13f, if (done || on) Ui.ON_PRIMARY else Ui.MUTED, true).apply {
+                gravity = Gravity.CENTER
+                background = rounded(if (done) Ui.GREEN else if (on) Ui.PRIMARY else Ui.CARD_ALT, dp(13).toFloat())
+            }
+            row.add(dot, LinearLayout.LayoutParams(dp(26), dp(26)).apply { marginEnd = dp(8) })
+            row.add(text(label, 14f, if (on) Ui.TEXT else Ui.MUTED, on), wrap())
+            if (i < 2) row.add(View(this).apply { setBackgroundColor(if (done) Ui.GREEN else Ui.DIVIDER) },
+                LinearLayout.LayoutParams(0, dp(2), 1f).apply { marginStart = dp(10); marginEnd = dp(10) })
+        }
+        return row
+    }
+
     private fun showIntro() {
-        val page = scrollingPage()
-        val c = card()
-        c.add(text("Teach the app a new OMR sheet", 20f, bold = true), block(8))
-        c.add(text(
-            "Give it a BLANK copy of the sheet: the PDF, a flat scan, or a clear photo of the whole page. " +
-                "The app finds every bubble, then you check what it found and name the number fields (roll, registration, set…).",
-            15f, Ui.MUTED,
-        ), block(8))
-        c.add(text(
-            "Sheets with black squares in the corners work best. For sheets without them, photograph the filled sheets " +
-                "on a darker surface with the whole page in view.",
-            14f, Ui.MUTED,
-        ), block(12))
-        c.add(button("Choose PDF of the blank sheet") { pick("application/pdf", REQUEST_PDF) }, block(8))
-        c.add(button("Choose picture", ButtonStyle.SECONDARY) { ImageSources.openGallery(this) }, block(8))
-        c.add(button("Take photo", ButtonStyle.SECONDARY) { ImageSources.openCamera(this) }, block(0))
-        page.add(c)
+        val page = scrollingPage("Add a sheet type")
+        page.add(stepper(0), block(18))
+        val hero = vertical().apply { gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, dp(4), 0, dp(18)) }
+        hero.add(iconBadge(Icon.SPARK, Ui.PRIMARY, Ui.PRIMARY_LIGHT, 80, 36), LinearLayout.LayoutParams(dp(80), dp(80)).apply { bottomMargin = dp(14) })
+        hero.add(text("Teach the app a new OMR sheet", TextStyle.TITLE).apply { gravity = Gravity.CENTER }, wrap())
+        hero.add(text("Give it a BLANK copy: the PDF, a flat scan or a clear photo of the whole page. It finds every bubble, then you check and name the fields.",
+            TextStyle.BODY, Ui.MUTED).apply { gravity = Gravity.CENTER; setPadding(dp(8), dp(6), dp(8), 0) }, wrap())
+        page.add(hero, block(0))
+
+        val choose = card(6)
+        choose.add(listRow(Icon.PDF, "PDF of the blank sheet", "Best quality", Ui.PURPLE, Ui.PURPLE_BG) { pick("application/pdf", REQUEST_PDF) }, block(0))
+        choose.add(divider(), LinearLayout.LayoutParams(-1, dp(1)).apply { marginStart = dp(68) })
+        choose.add(listRow(Icon.GALLERY, "Picture or scan", "From the gallery or files") { ImageSources.openGallery(this) }, block(0))
+        choose.add(divider(), LinearLayout.LayoutParams(-1, dp(1)).apply { marginStart = dp(68) })
+        choose.add(listRow(Icon.CAMERA, "Take a photo", "Flat, whole page in view", Ui.GREEN, Ui.GREEN_BG) { ImageSources.openCamera(this) }, block(0))
+        page.add(choose, block(14))
+        page.add(banner("Sheets with black squares in the corners work best. For sheets without them, photograph the filled sheets on a darker surface with the whole page in view."), block(0))
+    }
+
+    private fun banner(message: String): View {
+        val row = horizontal().apply { setPadding(dp(14), dp(12), dp(14), dp(12)); background = rounded(Ui.PRIMARY_LIGHT, dp(16).toFloat()) }
+        row.add(iconBadge(Icon.INFO, Ui.ON_PRIMARY_LIGHT, android.graphics.Color.TRANSPARENT, 28, 20), LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(10) })
+        row.add(text(message, 13.5f, Ui.ON_PRIMARY_LIGHT), weighted())
+        return row
     }
 
     private fun pick(type: String, request: Int) {
@@ -80,10 +99,7 @@ class SheetSetupActivity : Activity() {
     }
 
     private fun learn(uri: Uri, pdf: Boolean) {
-        val box = vertical(32).apply { gravity = Gravity.CENTER; setBackgroundColor(Ui.BACKGROUND) }
-        box.add(ProgressBar(this), LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(16) })
-        box.add(text("Finding the bubbles…", 17f, Ui.MUTED), LinearLayout.LayoutParams(-2, -2))
-        setContentView(box)
+        processingScreen("Studying the sheet", listOf("Opening the file", "Finding the page", "Finding the bubbles", "Grouping the areas")).first.autoAdvance(900)
         Thread {
             var result: LearnedSheet? = null
             var error: String? = null
@@ -136,72 +152,88 @@ class SheetSetupActivity : Activity() {
 
     private fun showReview() {
         val l = learned ?: return
-        val page = scrollingPage()
+        val page = scrollingPage("Check the sheet", footer = footerBar(
+            button("Start again", ButtonStyle.SECONDARY) { showIntro() },
+            button("Save type", ButtonStyle.PRIMARY, Icon.CHECK) { save() },
+        ))
+        page.add(stepper(1), block(16))
 
-        val top = card()
-        top.add(text("Check what was found", 20f, bold = true), block(6))
         val questions = l.groups.filter { it.kind == GroupKind.ANSWERS }.sumOf { it.rows.size }
         val numbers = l.groups.count { it.isField }
-        top.add(text(
-            "$questions questions and $numbers number/letter fields. " +
-                (if (l.alignment == Alignment.MARKERS) "Lined up by the 4 corner squares." else "No corner squares: filled sheets are lined up by the page edges, so photograph them on a darker surface.") +
-                (if (l.inkMode != InkMode.LUMINANCE) " The print is coloured, so it is ignored when reading marks." else ""),
-            14f, Ui.MUTED,
-        ), block(10))
-        top.add(text("Name of this sheet type", 13f, Ui.MUTED), block(2))
-        val nameField = EditText(this).apply {
-            setText(name)
-            setSingleLine()
-            addTextChangedListener(object : TextWatcher {
-                override fun afterTextChanged(s: Editable?) { name = s.toString() }
-                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-            })
-        }
-        top.add(nameField, block(8))
-        top.add(text("Is the sheet the right way up in the picture below? If not, turn it:", 13f, Ui.MUTED), block(4))
-        val turn = horizontal()
-        turn.add(button("Rotate 90°", ButtonStyle.SECONDARY) { rotate(1) }, weighted().apply { marginEnd = dp(8) })
-        turn.add(button("Turn upside down", ButtonStyle.SECONDARY) { rotate(2) }, weighted())
-        top.add(turn, block(10))
-        val letters = RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL }
-        letters.addView(RadioButton(this).apply { text = "A B C D"; id = 1 })
-        letters.addView(RadioButton(this).apply { text = "ক খ গ ঘ"; id = 2 })
-        letters.check(if (bangla) 2 else 1)
-        letters.setOnCheckedChangeListener { _, id -> bangla = id == 2; redraw() }
-        top.add(letters, block(4))
-        val across = CheckBox(this).apply {
-            text = "Number questions across the rows (1, 2, 3… left to right) instead of down each column"
-            isChecked = acrossRows
-            setOnCheckedChangeListener { _, on -> acrossRows = on; redraw() }
-        }
-        top.add(across, block(0))
-        page.add(top, block(12))
+        val tiles = horizontal()
+        tiles.add(statTile("$questions", "Questions", Ui.BLUE, Ui.PRIMARY_LIGHT), weighted().apply { marginEnd = dp(8) })
+        tiles.add(statTile("$numbers", "ID fields", Ui.GREEN, Ui.GREEN_BG), weighted().apply { marginEnd = dp(8) })
+        tiles.add(statTile(if (l.alignment == Alignment.MARKERS) "4" else "—", "Corner marks", Ui.PURPLE, Ui.PURPLE_BG), weighted())
+        page.add(tiles, block(12))
+        val notes = listOfNotNull(
+            if (l.alignment == Alignment.MARKERS) null else "No corner squares: filled sheets are lined up by the page edges, so photograph them on a darker surface.",
+            if (l.inkMode != InkMode.LUMINANCE) "The print is coloured, so it is ignored when reading marks." else null,
+        )
+        if (notes.isNotEmpty()) page.add(banner(notes.joinToString(" ")), block(12))
 
-        val holder = card().apply { setPadding(dp(6), dp(6), dp(6), dp(6)) }
-        preview = ImageView(this).apply { adjustViewBounds = true; scaleType = ImageView.ScaleType.FIT_CENTER }
-        holder.add(preview, block(0))
+        val (nameBox, nameField) = inputField("Name of this sheet type", name, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
+        nameField.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) { name = s.toString() }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+        page.add(nameBox, block(16))
+
+        // The sheet with an overlay of rotate buttons.
+        val holder = card(6)
+        val frame = FrameLayout(this)
+        preview = ZoomImageView(this).apply { maxHeightPx = (resources.displayMetrics.heightPixels * 0.7).toInt() }
+        frame.addView(preview)
+        val turn = horizontal().apply {
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            background = rounded(if (Ui.dark) 0xCC1A1B2E.toInt() else 0xE6FFFFFF.toInt(), dp(26).toFloat())
+            elevation = dp(3).toFloat()
+        }
+        turn.add(iconButton(Icon.ROTATE, Ui.PRIMARY, sizeDp = 44) { rotate(1) }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        turn.add(iconButton(Icon.FLIP, Ui.PRIMARY, sizeDp = 44) { rotate(2) }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        frame.addView(turn, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END).apply { setMargins(0, dp(8), dp(8), 0) })
+        holder.add(frame, block(0))
         page.add(holder, block(6))
-        page.add(text("Blue: answers (with question numbers) • Green: number fields • Purple: letter codes • Orange: name (A–Z) • Grey: ignored", 13f, Ui.MUTED), block(12))
+        page.add(text("Not the right way up? Use ⟳ to rotate 90° or ⇅ to turn it upside down. Pinch to zoom.", 12.5f, Ui.MUTED).apply { setPadding(dp(4), 0, dp(4), 0) }, block(8))
+        val legend = horizontal()
+        for (k in listOf(GroupKind.ANSWERS, GroupKind.NUMBER, GroupKind.LETTERS, GroupKind.NAME)) {
+            legend.add(View(this).apply { background = rounded(colour(k), dp(5).toFloat()) }, LinearLayout.LayoutParams(dp(10), dp(10)).apply { marginEnd = dp(5) })
+            legend.add(text(kindName(k), 12f, Ui.MUTED), wrap().apply { marginEnd = dp(12) })
+        }
+        page.add(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(legend); setPadding(dp(4), 0, 0, 0) }, block(16))
 
-        val list = card()
-        list.add(text("Detected areas", 16f, bold = true), block(4))
-        list.add(text("Tap the type to change it. Mark which number field is the roll / ID and which is the set code.", 13f, Ui.MUTED), block(8))
-        l.groups.forEachIndexed { i, g -> list.add(groupRow(i), block(10)) }
-        page.add(list, block(12))
+        page.add(sectionHeader("Reading options"), block(4))
+        val opts = card(6)
+        val lettersRow = horizontal().apply { setPadding(dp(14), dp(12), dp(14), dp(12)) }
+        lettersRow.add(text("Option letters", 15f, Ui.TEXT, true), weighted())
+        lettersRow.add(segmented(listOf("A B C", "ক খ গ"), if (bangla) 1 else 0) { i -> if ((i == 1) != bangla) { bangla = i == 1; showReview() } },
+            LinearLayout.LayoutParams(dp(150), -2))
+        opts.add(lettersRow, block(0))
+        opts.add(divider(), LinearLayout.LayoutParams(-1, dp(1)).apply { marginStart = dp(14) })
+        val acrossRow = horizontal().apply { setPadding(dp(14), dp(12), dp(14), dp(12)) }
+        val acrossText = vertical()
+        acrossText.add(text("Number across the rows", 15f, Ui.TEXT, true), wrap())
+        acrossText.add(text("1, 2, 3… left to right instead of down each column", 12.5f, Ui.MUTED), wrap())
+        acrossRow.add(acrossText, weighted())
+        acrossRow.add(android.widget.Switch(this).apply {
+            isChecked = acrossRows
+            thumbTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(Ui.PRIMARY, Ui.CARD))
+            trackTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(Ui.PRIMARY_LIGHT, Ui.DIVIDER))
+            setOnCheckedChangeListener { _, on -> acrossRows = on; redraw() }
+        }, wrap())
+        opts.add(acrossRow, block(0))
+        page.add(opts, block(16))
 
-        page.add(button("Save sheet type") { save() })
-        page.add(button("Start again with another file", ButtonStyle.SECONDARY) { showIntro() })
+        page.add(sectionHeader("Detected areas"), block(4))
+        page.add(text("Tap the type to change it. Mark which field is the roll / ID and which is the set code.", 13f, Ui.MUTED).apply { setPadding(dp(4), 0, dp(4), 0) }, block(8))
+        l.groups.forEachIndexed { i, _ -> page.add(groupRow(i), block(10)) }
         redraw()
     }
 
     /** Turns the flattened sheet clockwise by [quarterTurns] × 90° and studies it again. */
     private fun rotate(quarterTurns: Int) {
         val l = learned ?: return
-        val box = vertical(32).apply { gravity = Gravity.CENTER; setBackgroundColor(Ui.BACKGROUND) }
-        box.add(ProgressBar(this), LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(16) })
-        box.add(text("Turning the sheet…", 17f, Ui.MUTED), LinearLayout.LayoutParams(-2, -2))
-        setContentView(box)
+        processingScreen("Turning the sheet", listOf("Rotating", "Finding the bubbles", "Grouping the areas")).first.autoAdvance(700)
         Thread {
             val result = try { TemplateLearner.learn(l.page.rotated(quarterTurns), keepOrientation = true) } catch (e: Exception) { null }
             runOnUiThread {
@@ -220,46 +252,59 @@ class SheetSetupActivity : Activity() {
     private fun groupRow(i: Int): View {
         val l = learned!!
         val g = l.groups[i]
-        val row = vertical()
+        val c = card(14)
         val head = horizontal()
-        head.add(text("#${i + 1}", 15f, colour(g.kind), bold = true), LinearLayout.LayoutParams(dp(40), -2))
-        head.add(text(g.describe(), 14f), weighted())
-        val type = text(kindName(g.kind), 14f, Ui.PRIMARY, bold = true).apply {
-            setPadding(dp(12), dp(6), dp(12), dp(6))
-            background = rounded(Ui.PRIMARY_LIGHT, dp(14).toFloat())
-            setOnClickListener {
-                g.kind = GroupKind.entries[(g.kind.ordinal + 1) % GroupKind.entries.size]
-                if (g.isField) { if (g.name.isBlank()) g.name = "Code ${i + 1}" }
-                showReview()
-            }
+        head.add(text("${i + 1}", 14f, Ui.ON_PRIMARY, true).apply {
+            gravity = Gravity.CENTER
+            background = rounded(colour(g.kind), dp(15).toFloat())
+        }, LinearLayout.LayoutParams(dp(30), dp(30)).apply { marginEnd = dp(12) })
+        head.add(text(g.describe(), 14f, Ui.TEXT), weighted())
+        val type = text(kindName(g.kind) + "  ▾", 13f, Ui.ON_PRIMARY_LIGHT, true).apply {
+            setPadding(dp(12), dp(7), dp(12), dp(7))
+            val r = dp(14).toFloat()
+            background = ripple(rounded(Ui.PRIMARY_LIGHT, r), r)
+            setOnClickListener { chooseKind(i) }
         }
-        head.add(type)
-        row.add(head, block(4))
+        head.add(type, wrap())
+        c.add(head, block(0))
         if (g.isField) {
-            val line = horizontal()
-            val nameEdit = EditText(this).apply {
-                setText(g.name)
-                setSingleLine()
-                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
-                hint = "Field name"
-                addTextChangedListener(object : TextWatcher {
-                    override fun afterTextChanged(s: Editable?) { g.name = s.toString().trim() }
-                    override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-                    override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-                })
-            }
-            line.add(nameEdit, weighted())
-            line.add(chip("Roll/ID", idGroup == i) { idGroup = if (idGroup == i) -1 else i; showReview() }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(6) })
-            line.add(chip("Set", setGroup == i) { setGroup = if (setGroup == i) -1 else i; showReview() }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(6) })
-            row.add(line, block(0))
+            val line = horizontal().apply { setPadding(0, dp(12), 0, 0) }
+            val (box, nameEdit) = inputField("Field name", g.name, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
+            (box.getChildAt(0)).visibility = View.GONE
+            nameEdit.addTextChangedListener(object : TextWatcher {
+                override fun afterTextChanged(s: Editable?) { g.name = s.toString().trim() }
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            })
+            line.add(box, weighted())
+            line.add(choiceChip("Roll/ID", idGroup == i) { idGroup = if (idGroup == i) -1 else i; showReview() }, wrap().apply { marginStart = dp(8) })
+            line.add(choiceChip("Set", setGroup == i) { setGroup = if (setGroup == i) -1 else i; showReview() }, wrap().apply { marginStart = dp(6) })
+            c.add(line, block(0))
         }
-        return row
+        return c
     }
 
-    private fun chip(label: String, on: Boolean, onClick: () -> Unit) = text(label, 14f, if (on) 0xFFFFFFFF.toInt() else Ui.PRIMARY, bold = true).apply {
-        setPadding(dp(12), dp(6), dp(12), dp(6))
-        background = rounded(if (on) Ui.PRIMARY else Ui.CARD, dp(14).toFloat(), Ui.PRIMARY, dp(1.5f))
-        setOnClickListener { onClick() }
+    private fun chooseKind(i: Int) = bottomSheet("Area ${i + 1} is…") { col, d ->
+        val g = learned!!.groups[i]
+        for (k in GroupKind.entries) {
+            val on = k == g.kind
+            col.add(listRow(Icon.SHEET, kindName(k), kindHelp(k), colour(k), Ui.CARD_ALT,
+                trailing = if (on) android.widget.ImageView(this).apply { setImageDrawable(com.omrscanner.app.ui.IconDrawable(Icon.CHECK, Ui.PRIMARY, dp(22))) } else null,
+                chevron = false) {
+                d.dismiss()
+                g.kind = k
+                if (g.isField && g.name.isBlank()) g.name = "Code ${i + 1}"
+                showReview()
+            }, block(0))
+        }
+    }
+
+    private fun kindHelp(k: GroupKind) = when (k) {
+        GroupKind.ANSWERS -> "Question bubbles"
+        GroupKind.NUMBER -> "Digits 0–9, e.g. roll or registration"
+        GroupKind.LETTERS -> "A short code, e.g. set ক খ গ ঘ"
+        GroupKind.NAME -> "Letters A–Z for a name"
+        GroupKind.IGNORE -> "Not read"
     }
 
     private fun kindName(k: GroupKind) = when (k) {
@@ -271,11 +316,11 @@ class SheetSetupActivity : Activity() {
     }
 
     private fun colour(k: GroupKind) = when (k) {
-        GroupKind.ANSWERS -> Ui.BLUE
-        GroupKind.NUMBER -> Ui.GREEN
-        GroupKind.LETTERS -> Ui.PURPLE
-        GroupKind.NAME -> Ui.ORANGE
-        GroupKind.IGNORE -> Ui.MUTED
+        GroupKind.ANSWERS -> 0xFF2563EB.toInt()
+        GroupKind.NUMBER -> 0xFF16A34A.toInt()
+        GroupKind.LETTERS -> 0xFF9333EA.toInt()
+        GroupKind.NAME -> 0xFFEA7C0C.toInt()
+        GroupKind.IGNORE -> 0xFF8A8CA3.toInt()
     }
 
     private fun labels() = if (bangla) SheetSpec.BANGLA_LABELS else SheetSpec.LATIN_LABELS
@@ -310,7 +355,7 @@ class SheetSetupActivity : Activity() {
         } catch (e: IllegalArgumentException) {
             // No answer area selected yet.
         }
-        preview.setImageBitmap(bmp)
+        preview.setImage(bmp)
     }
 
     private fun save() {
