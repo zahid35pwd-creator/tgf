@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="bn" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>পরিচিতি · বেতন হিসাব</title>
+<meta name="description" content="এই প্রোটোটাইপ সম্পর্কে, হিসাবের ভিত্তি ও দাবিত্যাগ।">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f6b4f'/><text x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='monospace'>৳</text></svg>">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap head-row">
+    <a class="brand" href="index.html">
+      <span class="mark">৳</span>
+      <span>বেতন হিসাব<small>SALARY BD · প্রোটোটাইপ</small></span>
+    </a>
+    <button class="icon-btn nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="মেনু">☰</button>
+    <nav class="nav" id="nav">
+      <a href="index.html">হোম</a>
+      <a href="calculator.html">বেতন ক্যালকুলেটর</a>
+      <a href="payscale.html">বেতন স্কেল</a>
+      <a href="increment.html">ইনক্রিমেন্ট</a>
+      <a href="pension.html">পেনশন</a>
+      <a href="about.html">পরিচিতি</a>
+      <button class="icon-btn" id="themeToggle" title="থিম বদলান" aria-label="থিম বদলান" style="width:auto;padding:0 12px;font-size:.85rem;font-weight:700">থিম</button>
+    </nav>
+  </div>
+</header>
+<main>
+<div class="hero" style="padding:30px 0 24px">
+  <div class="wrap">
+    <span class="eyebrow">● প্রোটোটাইপ</span>
+    <h1>পরিচিতি ও দাবিত্যাগ</h1>
+    <p class="lede">এই সাইটটি কীভাবে হিসাব করে, কোন কোন হার ব্যবহার করে এবং কোথায় সতর্ক থাকতে হবে।</p>
+  </div>
+</div>
+
+<section>
+  <div class="wrap grid grid-2">
+    <div class="card card-pad">
+      <h2>এটি কী</h2>
+      <p>সরকারি চাকরিজীবীদের মাসিক বেতন, ভাতা, কর্তন, বার্ষিক ইনক্রিমেন্ট ও অবসরকালীন পেনশন হিসাবের একটি খোলা সোর্স প্রোটোটাইপ। কোনো সার্ভার নেই — সবটুকু হিসাব আপনার ব্রাউজারের জাভাস্ক্রিপ্টেই হয়, তাই আপনার দেওয়া কোনো তথ্য কোথাও পাঠানো বা সংরক্ষণ করা হয় না।</p>
+      <h3>হিসাবের কাঠামো</h3>
+      <ul>
+        <li>সব হার ও স্কেল একটি আলাদা ডেটা ফাইলে রাখা, হিসাবের কোডে কোনো সংখ্যা বসানো নেই।</li>
+        <li>হিসাবের ফাংশনগুলো ইন্টারফেস থেকে আলাদা, ফলে আলাদাভাবে পরীক্ষা করা যায়।</li>
+        <li>প্রজ্ঞাপনে হার বদলালে শুধু ডেটা ফাইল সম্পাদনা করলেই পুরো সাইট হালনাগাদ হয়।</li>
+      </ul>
+    </div>
+
+    <div class="card card-pad">
+      <h2>কোন হার ব্যবহার করা হয়েছে</h2>
+      <table><tbody>
+        <tr><td>বার্ষিক ইনক্রিমেন্ট</td><td class="num">মূল বেতনের ৫%</td></tr>
+        <tr><td>বাড়ি ভাড়া ভাতা</td><td class="num">এলাকা ও স্তরভেদে ৩০%–৬৫%</td></tr>
+        <tr><td>চিকিৎসা ভাতা</td><td class="num">১,৫০০ টাকা</td></tr>
+        <tr><td>শিক্ষা সহায়ক ভাতা</td><td class="num">সন্তানপ্রতি ৫০০, সর্বোচ্চ ২ জন</td></tr>
+        <tr><td>উৎসব ভাতা</td><td class="num">মূল বেতনের ১০০%, বছরে ২ বার</td></tr>
+        <tr><td>বৈশাখী ভাতা</td><td class="num">মূল বেতনের ২০%</td></tr>
+        <tr><td>পূর্ণ পেনশনের হার</td><td class="num">মূল বেতনের ৯০%</td></tr>
+        <tr><td>আনুতোষিকের হার</td><td class="num">১ টাকার বিপরীতে ২৩০ টাকা</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="notice warn">
+      <strong>গুরুত্বপূর্ণ দাবিত্যাগ।</strong> এটি কোনো সরকারি ওয়েবসাইট নয় এবং কোনো সরকারি দপ্তরের সাথে সম্পৃক্ত নয়। এখানে দেখানো হিসাব শুধু ধারণা পাওয়ার জন্য। ভাতা ও কর্তনের হার, আয়করের স্ল্যাব এবং বিশেষ প্রণোদনার হার সময়ে সময়ে প্রজ্ঞাপনের মাধ্যমে পরিবর্তিত হয়; কোনো কোনো ভাতা দপ্তর বা পদভেদে ভিন্ন হতে পারে। বেতন নির্ধারণ, আয়কর রিটার্ন বা পেনশন মঞ্জুরির মতো কাজে ব্যবহারের আগে নিজ দপ্তরের হিসাবরক্ষণ কর্মকর্তা বা হিসাব মহানিয়ন্ত্রকের দপ্তরের সাথে মিলিয়ে নিন।
+    </div>
+  </div>
+</section>
+</main>
+<footer class="site-foot">
+  <div class="wrap foot-grid">
+    <div>
+      <h4>বেতন হিসাব</h4>
+      <p>সরকারি চাকরিজীবীদের মাসিক বেতন, ভাতা, কর্তন, ইনক্রিমেন্ট ও পেনশন হিসাবের একটি খোলা প্রোটোটাইপ। সব হিসাব আপনার ব্রাউজারেই হয় — কোনো তথ্য সার্ভারে পাঠানো হয় না।</p>
+    </div>
+    <div>
+      <h4>ক্যালকুলেটর</h4>
+      <ul>
+        <li><a href="calculator.html">বেতন ক্যালকুলেটর</a></li>
+        <li><a href="increment.html">ইনক্রিমেন্ট ক্যালকুলেটর</a></li>
+        <li><a href="pension.html">পেনশন ক্যালকুলেটর</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>তথ্য</h4>
+      <ul>
+        <li><a href="payscale.html">বেতন স্কেল টেবিল</a></li>
+        <li><a href="about.html">পরিচিতি ও দাবিত্যাগ</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:20px;font-size:.82rem">
+    © <span class="num">২০২৬</span> বেতন হিসাব · শিক্ষামূলক প্রোটোটাইপ, কোনো সরকারি ওয়েবসাইট নয়।
+  </div>
+</footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/calc.js"></script>
+<script src="assets/js/ui.js"></script>
+</body>
+</html>

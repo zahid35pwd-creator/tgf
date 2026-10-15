@@ -1,0 +1,204 @@
+/* ============================================================
+   বেতন হিসাব — প্রোটোটাইপ ডিজাইন সিস্টেম
+   গাঢ় সবুজ-সোনালি "লেজার" থিম, লাইট ও ডার্ক দুই মোডেই কাজ করে।
+   ============================================================ */
+
+:root{
+  --ink:#10221c; --ink-2:#3d5b51; --ink-3:#6d8b80;
+  --paper:#f4f7f4; --surface:#ffffff; --surface-2:#eef3ef;
+  --line:#d7e2da; --line-strong:#b9cbc0;
+  --brand:#0f6b4f; --brand-soft:#e3f2ea; --brand-ink:#0b4e39;
+  --gold:#a5751a; --gold-soft:#fbf1dc;
+  --danger:#a33131; --danger-soft:#fbe9e9;
+  --radius:16px; --radius-sm:10px;
+  --shadow:0 1px 2px rgba(16,34,28,.05), 0 8px 28px -14px rgba(16,34,28,.28);
+  --maxw:1120px;
+  --font:"Hind Siliguri","Noto Sans Bengali",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ink:#e7efe9; --ink-2:#a9c0b5; --ink-3:#7e978c;
+    --paper:#0c1512; --surface:#121f1a; --surface-2:#182821;
+    --line:#22352c; --line-strong:#334c40;
+    --brand:#3fbd8c; --brand-soft:#153025; --brand-ink:#8fe0be;
+    --gold:#d8ab52; --gold-soft:#2a2113;
+    --danger:#e08080; --danger-soft:#331c1c;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#e7efe9; --ink-2:#a9c0b5; --ink-3:#7e978c;
+  --paper:#0c1512; --surface:#121f1a; --surface-2:#182821;
+  --line:#22352c; --line-strong:#334c40;
+  --brand:#3fbd8c; --brand-soft:#153025; --brand-ink:#8fe0be;
+  --gold:#d8ab52; --gold-soft:#2a2113;
+  --danger:#e08080; --danger-soft:#331c1c;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -16px rgba(0,0,0,.7);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--font); font-size:16.5px; line-height:1.7;
+}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 16px}
+a{color:var(--brand-ink); text-underline-offset:3px}
+h1,h2,h3{line-height:1.35; margin:0 0 .5em; font-weight:700; letter-spacing:-.01em}
+h1{font-size:clamp(1.6rem,1.2rem + 2vw,2.5rem)}
+h2{font-size:clamp(1.25rem,1.05rem + 1vw,1.6rem)}
+h3{font-size:1.08rem}
+p{margin:0 0 1em}
+.num{font-family:var(--mono); font-variant-numeric:tabular-nums; font-feature-settings:"tnum"}
+
+/* ---------- হেডার ---------- */
+.site-head{
+  position:sticky; top:0; z-index:40; background:color-mix(in srgb,var(--paper) 88%,transparent);
+  backdrop-filter:saturate(1.4) blur(10px); border-bottom:1px solid var(--line);
+}
+.head-row{display:flex; align-items:center; gap:12px; min-height:62px}
+.brand{display:flex; align-items:center; gap:10px; font-weight:800; color:var(--ink); text-decoration:none; white-space:nowrap}
+.brand .mark{
+  width:32px; height:32px; border-radius:9px; display:grid; place-items:center;
+  background:linear-gradient(145deg,var(--brand),var(--brand-ink)); color:#fff;
+  font-family:var(--mono); font-size:.85rem; font-weight:700; flex:none;
+}
+.brand small{display:block; font-size:.62rem; color:var(--ink-3); font-weight:600; letter-spacing:.14em}
+.nav{display:flex; gap:4px; margin-inline-start:auto; align-items:center; flex-wrap:wrap}
+.nav a{
+  padding:7px 13px; border-radius:999px; font-size:.92rem; font-weight:600;
+  color:var(--ink-2); text-decoration:none; border:1px solid transparent;
+}
+.nav a:hover{background:var(--surface-2); color:var(--ink)}
+.nav a[aria-current="page"]{background:var(--brand-soft); color:var(--brand-ink); border-color:var(--line-strong)}
+.icon-btn{
+  width:38px; height:38px; flex:none; border-radius:10px; border:1px solid var(--line);
+  background:var(--surface); color:var(--ink-2); cursor:pointer; font-size:1rem;
+}
+.icon-btn:hover{border-color:var(--line-strong); color:var(--ink)}
+.nav-toggle{display:none}
+
+/* ---------- হিরো ---------- */
+.hero{padding:48px 0 34px; border-bottom:1px solid var(--line);
+  background:radial-gradient(900px 300px at 82% -20%,var(--brand-soft),transparent 70%)}
+.eyebrow{
+  display:inline-flex; align-items:center; gap:7px; font-size:.78rem; font-weight:700;
+  letter-spacing:.08em; color:var(--brand-ink); background:var(--brand-soft);
+  border:1px solid var(--line-strong); padding:5px 12px; border-radius:999px; margin-bottom:14px;
+}
+.lede{font-size:1.08rem; color:var(--ink-2); max-width:62ch}
+.cta-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:20px}
+
+/* ---------- বাটন ---------- */
+.btn{
+  display:inline-flex; align-items:center; gap:8px; padding:11px 20px; border-radius:11px;
+  font:inherit; font-weight:700; font-size:.95rem; cursor:pointer; text-decoration:none;
+  border:1px solid transparent; transition:transform .06s ease, background .15s ease;
+}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--brand); color:#fff}
+.btn-primary:hover{background:var(--brand-ink)}
+.btn-ghost{background:var(--surface); color:var(--ink); border-color:var(--line-strong)}
+.btn-ghost:hover{background:var(--surface-2)}
+.btn-block{width:100%; justify-content:center}
+
+/* ---------- কার্ড ও গ্রিড ---------- */
+section{padding:40px 0}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow)}
+.card-pad{padding:22px}
+.grid{display:grid; gap:16px}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.calc-layout{display:grid; gap:22px; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); align-items:start}
+.sticky{position:sticky; top:82px}
+
+.feature{display:block; text-decoration:none; color:inherit; padding:20px; border-radius:var(--radius);
+  background:var(--surface); border:1px solid var(--line); box-shadow:var(--shadow)}
+.feature:hover{border-color:var(--brand); transform:translateY(-2px); transition:.15s}
+.feature .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  background:var(--brand-soft); color:var(--brand-ink); font-size:1.1rem; margin-bottom:10px}
+.feature h3{margin-bottom:.25em}
+.feature p{margin:0; color:var(--ink-2); font-size:.93rem}
+
+/* ---------- ফর্ম ---------- */
+fieldset{border:0; margin:0 0 20px; padding:0}
+legend{
+  font-size:.74rem; font-weight:800; letter-spacing:.12em; color:var(--ink-3);
+  text-transform:uppercase; padding:0 0 10px;
+}
+.field{margin-bottom:14px}
+.field label{display:block; font-size:.88rem; font-weight:600; margin-bottom:6px; color:var(--ink-2)}
+.field .hint{font-size:.78rem; color:var(--ink-3); margin-top:5px}
+input[type=number],input[type=text],select{
+  width:100%; padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--line-strong);
+  background:var(--surface); color:var(--ink); font:inherit; font-size:.95rem;
+}
+input:focus,select:focus{outline:2px solid var(--brand); outline-offset:1px; border-color:var(--brand)}
+.check{display:flex; align-items:flex-start; gap:9px; padding:8px 10px; border-radius:var(--radius-sm);
+  border:1px solid var(--line); margin-bottom:8px; background:var(--surface-2); font-size:.9rem}
+.check input{margin-top:5px; accent-color:var(--brand)}
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+
+/* ---------- ফলাফল ---------- */
+.result-head{padding:20px 22px; border-bottom:1px solid var(--line);
+  background:linear-gradient(160deg,var(--brand-soft),transparent)}
+.result-head .label{font-size:.78rem; font-weight:700; letter-spacing:.1em; color:var(--ink-3)}
+.big-num{font-family:var(--mono); font-size:clamp(1.9rem,1.4rem + 2.2vw,2.7rem); font-weight:700;
+  color:var(--brand-ink); line-height:1.15}
+.chips{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.chip{font-size:.8rem; padding:4px 11px; border-radius:999px; background:var(--surface);
+  border:1px solid var(--line-strong); color:var(--ink-2)}
+.chip.gold{background:var(--gold-soft); border-color:var(--gold); color:var(--gold)}
+
+table{width:100%; border-collapse:collapse; font-size:.93rem}
+th,td{padding:9px 12px; text-align:right; border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:.75rem; letter-spacing:.08em; color:var(--ink-3); text-transform:uppercase;
+  background:var(--surface-2); position:sticky; top:0}
+tbody tr:hover{background:var(--surface-2)}
+tr.sum td{font-weight:700; background:var(--surface-2); border-top:2px solid var(--line-strong)}
+tr.net td{font-weight:800; color:var(--brand-ink); background:var(--brand-soft); font-size:1.02rem}
+td .note{display:block; font-size:.76rem; color:var(--ink-3); font-family:var(--font)}
+.table-scroll{overflow:auto; max-height:70vh; border-radius:var(--radius); border:1px solid var(--line)}
+.table-scroll table{font-size:.88rem}
+.table-scroll td,.table-scroll th{white-space:nowrap}
+
+.stat{padding:16px 18px; border-radius:var(--radius); border:1px solid var(--line); background:var(--surface)}
+.stat .k{font-size:.8rem; color:var(--ink-3); font-weight:600}
+.stat .v{font-family:var(--mono); font-size:1.3rem; font-weight:700; margin-top:4px}
+
+.notice{border-inline-start:4px solid var(--gold); background:var(--gold-soft); color:var(--ink);
+  padding:14px 16px; border-radius:var(--radius-sm); font-size:.9rem}
+.notice.warn{border-color:var(--danger); background:var(--danger-soft)}
+.notice strong{color:inherit}
+
+/* ---------- ফুটার ---------- */
+.site-foot{border-top:1px solid var(--line); margin-top:40px; padding:30px 0; color:var(--ink-3); font-size:.88rem}
+.foot-grid{display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:24px}
+.foot-grid h4{font-size:.78rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-2); margin:0 0 10px}
+.foot-grid ul{list-style:none; margin:0; padding:0}
+.foot-grid li{margin-bottom:6px}
+.foot-grid a{color:var(--ink-2); text-decoration:none}
+.foot-grid a:hover{color:var(--brand-ink)}
+
+/* ---------- রেসপনসিভ ---------- */
+@media (max-width:900px){
+  .calc-layout,.grid-3,.grid-2,.foot-grid{grid-template-columns:1fr}
+  .sticky{position:static}
+}
+@media (max-width:720px){
+  .nav-toggle{display:inline-grid; place-items:center; margin-inline-start:auto}
+  .nav{
+    display:none; position:absolute; inset-inline:12px; top:62px; flex-direction:column;
+    align-items:stretch; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius); padding:8px; box-shadow:var(--shadow); margin:0;
+  }
+  .nav.open{display:flex}
+  .nav a{border-radius:var(--radius-sm)}
+  .two-col{grid-template-columns:1fr}
+}
+@media print{
+  .site-head,.site-foot,.no-print,.cta-row{display:none!important}
+  body{background:#fff} .card{box-shadow:none; border-color:#ccc}
+}
