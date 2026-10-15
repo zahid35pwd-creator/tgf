@@ -8,7 +8,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /** What a group of detected bubbles is used for. */
-enum class GroupKind { ANSWERS, NUMBER, LETTERS, IGNORE }
+enum class GroupKind { ANSWERS, NUMBER, LETTERS, NAME, IGNORE }
 
 /**
  * Bubbles that sit together on the blank sheet, e.g. one answer column or a roll-number grid.
@@ -27,10 +27,13 @@ class BubbleGroup(
     val right get() = columns.last().first().x
     val bottom get() = rows.last().first().y
 
+    val isField get() = kind == GroupKind.NUMBER || kind == GroupKind.LETTERS || kind == GroupKind.NAME
+
     fun describe(): String = when (kind) {
         GroupKind.ANSWERS -> "${rows.size} questions × ${rows.maxOf { it.size }} options"
         GroupKind.NUMBER -> "Number field, ${columns.size} digit${if (columns.size == 1) "" else "s"}"
-        GroupKind.LETTERS -> "Letter code, ${columns.maxOf { it.size }} choices"
+        GroupKind.LETTERS -> "Letter code, ${if (rows.size == 1) rows[0].size else columns.maxOf { it.size }} choices"
+        GroupKind.NAME -> "Name, ${columns.size} letters (A–Z)"
         GroupKind.IGNORE -> "Ignored (${count} circles)"
     }
 }
@@ -80,9 +83,15 @@ class LearnedSheet(
                 }
             }
         }
-        val fields = groups.filter { it.kind == GroupKind.NUMBER || it.kind == GroupKind.LETTERS }.map { g ->
-            val labels = if (g.kind == GroupKind.NUMBER) SheetTemplate.DIGITS else optionLabels
-            DigitField(g.name, g.columns.map { it.take(labels.size) }, g.radius, labels.take(g.columns.maxOf { it.size }))
+        val fields = groups.filter { it.isField }.map { g ->
+            val labels = when (g.kind) {
+                GroupKind.NUMBER -> SheetTemplate.DIGITS
+                GroupKind.NAME -> ALPHABET
+                else -> optionLabels
+            }
+            // A letter code printed across one row is a single column of choices.
+            val columns = if (g.kind == GroupKind.LETTERS && g.rows.size == 1) listOf(g.rows[0]) else g.columns
+            DigitField(g.name, columns.map { it.take(labels.size) }, g.radius, labels.take(columns.maxOf { it.size }))
         }
         return SheetTemplate(
             id = id,
@@ -117,11 +126,17 @@ class LearnedSheet(
     }
 }
 
+val ALPHABET = ('A'..'Z').map { it.toString() }
+
 /** Learns a sheet's layout from a picture or PDF page of a blank copy. */
 object TemplateLearner {
     private const val PX_PER_MM = 8.0
 
-    fun learn(image: ArgbImage): LearnedSheet {
+    /**
+     * Learns from [image]. Unless [keepOrientation] is set, a landscape picture is turned to portrait
+     * (the user can turn the result round on the review screen if it ends up the wrong way).
+     */
+    fun learn(image: ArgbImage, keepOrientation: Boolean = false): LearnedSheet {
         val work = ImageOps.downscale(image, 2600)
         val paper = ImageOps.paperQuad(ImageOps.luminance(work))
             ?: throw OmrException("Could not find the edges of the sheet. Use a flat scan or PDF of the blank sheet, or photograph it on a darker background.")
@@ -130,9 +145,9 @@ object TemplateLearner {
         val leftSide = dist(paper[0], paper[3]); val rightSide = dist(paper[1], paper[2])
         var corners = paper
         var aspect = (leftSide + rightSide) / (top + bottom)
-        if (aspect < 1) { corners = List(4) { paper[(it + 1) % 4] }; aspect = 1 / aspect } // keep portrait
-        val (w, h) = listOf(210.0 to 297.0, 215.9 to 279.4, 215.9 to 355.6)
-            .firstOrNull { (pw, ph) -> abs(ph / pw - aspect) / aspect < 0.04 } ?: (210.0 to 210.0 * aspect)
+        if (aspect < 1 && !keepOrientation) { corners = List(4) { paper[(it + 1) % 4] }; aspect = 1 / aspect } // keep portrait
+        val sizes = listOf(210.0 to 297.0, 215.9 to 279.4, 215.9 to 355.6).flatMap { (a, b) -> listOf(a to b, b to a) }
+        val (w, h) = sizes.firstOrNull { (pw, ph) -> abs(ph / pw - aspect) / aspect < 0.04 } ?: (210.0 to 210.0 * aspect)
         val pageToImage = Homography.fromPoints(listOf(Pt(0.0, 0.0), Pt(w, 0.0), Pt(w, h), Pt(0.0, h)), corners)
             ?: throw OmrException("Could not flatten the sheet.")
         val page = ImageOps.rectify(work, pageToImage, PX_PER_MM, w, h)
@@ -156,7 +171,7 @@ object TemplateLearner {
 
         // The print colour decides how fills are read; circles are then looked for in print-coloured
         // pixels only, so black digits printed inside coloured circles don't spoil their shape.
-        val inkMode = printColour(page, dark)
+        val inkMode = printColour(page, dark, findRings(dark))
         val printOnly = if (inkMode == InkMode.LUMINANCE) dark else {
             val inkDark = ImageOps.ink(page, inkMode, dark)
             FloatImage(dark.width, dark.height, FloatArray(dark.data.size) { if (inkDark.data[it] < 0.35f) dark.data[it] else 0f })
@@ -210,24 +225,40 @@ object TemplateLearner {
             if (d.count { it > 1.12 * rPx } > 0.05 * c.area) continue
             out.add(Ring(Pt(cx / s, cy / s), (bw + bh) / 4))
         }
-        return out
+        // Loops of letters or digits printed inside bigger circles (e.g. ৪, ০) are not bubbles.
+        return out.filter { a -> out.none { b -> b.radius > 1.4 * a.radius && dist(a.center, b.center) < b.radius } }
     }
 
     class Ring(val center: Pt, val radius: Double)
 
     /**
      * Coloured print vanishes in the channel where it is brightest; black print needs plain brightness.
-     * Decided from the median colour of all clearly printed pixels.
+     * Decided from the colour of the circles' outlines (other print, such as black timing marks or text,
+     * may be a different colour), or of all printed pixels if no circles were found.
      */
-    private fun printColour(page: ArgbImage, dark: FloatImage): InkMode {
+    private fun printColour(page: ArgbImage, dark: FloatImage, rings: List<Ring>): InkMode {
         val rs = ArrayList<Int>(); val gs = ArrayList<Int>(); val bs = ArrayList<Int>()
-        var i = 0
-        while (i < page.pixels.size) {
-            if (dark.data[i] > 0.3f) {
-                val v = page.pixels[i]
-                rs.add((v shr 16) and 0xFF); gs.add((v shr 8) and 0xFF); bs.add(v and 0xFF)
+        fun take(i: Int) {
+            val v = page.pixels[i]
+            rs.add((v shr 16) and 0xFF); gs.add((v shr 8) and 0xFF); bs.add(v and 0xFF)
+        }
+        if (rings.size >= 10) {
+            val s = PX_PER_MM
+            for (ring in rings) for (k in 0 until 16) {
+                val a = 2 * Math.PI * k / 16
+                // The darkest pixel across the outline at this angle.
+                var best = -1; var bestD = 0f
+                var t = ring.radius - 0.4
+                while (t <= ring.radius + 0.4) {
+                    val x = ((ring.center.x + t * kotlin.math.cos(a)) * s).toInt(); val y = ((ring.center.y + t * kotlin.math.sin(a)) * s).toInt()
+                    if (x in 0 until dark.width && y in 0 until dark.height && dark[x, y] > bestD) { bestD = dark[x, y]; best = y * dark.width + x }
+                    t += 0.1
+                }
+                if (best >= 0 && bestD > 0.3f) take(best)
             }
-            i += 3
+        } else {
+            var i = 0
+            while (i < page.pixels.size) { if (dark.data[i] > 0.3f) take(i); i += 3 }
         }
         if (rs.isEmpty()) return InkMode.LUMINANCE
         val r = rs.sorted()[rs.size / 2]; val g = gs.sorted()[gs.size / 2]; val b = bs.sorted()[bs.size / 2]
@@ -241,13 +272,21 @@ object TemplateLearner {
         val n = rings.size
         val parent = IntArray(n) { it }
         fun root(i: Int): Int { var r = i; while (parent[r] != r) r = parent[r]; return r }
+        fun similar(a: Ring, b: Ring) = max(a.radius, b.radius) / min(a.radius, b.radius) <= 1.25
+        fun inRow(a: Ring, b: Ring) = abs(a.center.y - b.center.y) < 0.35 * (a.radius + b.radius) / 2
+        fun inCol(a: Ring, b: Ring) = abs(a.center.x - b.center.x) < 0.35 * (a.radius + b.radius) / 2
+        // Each circle's spacing to its nearest neighbour across: a gap clearly wider than the grid's own
+        // spacing separates two side-by-side fields, however small it is compared with the circles.
+        val pitchX = DoubleArray(n) { i -> rings.indices.filter { j -> j != i && similar(rings[i], rings[j]) && inRow(rings[i], rings[j]) }
+            .minOfOrNull { j -> abs(rings[i].center.x - rings[j].center.x) }?.takeIf { it > 0.5 * rings[i].radius } ?: Double.MAX_VALUE }
         for (i in 0 until n) for (j in i + 1 until n) {
             val a = rings[i]; val b = rings[j]
+            if (!similar(a, b)) continue
             val r = (a.radius + b.radius) / 2
-            if (max(a.radius, b.radius) / min(a.radius, b.radius) > 1.25) continue
             val dx = abs(a.center.x - b.center.x); val dy = abs(a.center.y - b.center.y)
-            val sameRow = dy < 0.35 * r && dx < 5.5 * r
-            val sameCol = dx < 0.35 * r && dy < 6.0 * r
+            val sameRow = inRow(a, b) && dx < 5.5 * r && dx <= 1.6 * min(pitchX[i], pitchX[j])
+            // Down a column, fields are far apart; a missing circle must not split a column in two.
+            val sameCol = inCol(a, b) && dy < 8.0 * r
             if (sameRow || sameCol) parent[root(i)] = root(j)
         }
         val byRoot = (0 until n).groupBy { root(it) }.values.map { idx -> idx.map { rings[it] } }
@@ -258,12 +297,36 @@ object TemplateLearner {
             val members = complete(found, r, print)
             // Snap every circle to its row's and column's average line: sheets are printed on a regular grid,
             // and this removes the error of any single circle whose outline touches other print.
-            val rowLines = cluster(members) { it.center.y }.map { c -> c.map { it.center.y }.average() }
-            val colLines = cluster(members) { it.center.x }.map { c -> c.map { it.center.x }.average() }
-            val snapped = members.map { m -> Pt(colLines.minBy { abs(it - m.center.x) }, rowLines.minBy { abs(it - m.center.y) }) }.distinct()
-            val rows = rowLines.map { y -> snapped.filter { it.y == y }.sortedBy { it.x } }.filter { it.isNotEmpty() }
-            val cols = colLines.map { x -> snapped.filter { it.x == x }.sortedBy { it.y } }.filter { it.isNotEmpty() }
+            // Lines closer than a radius are one line seen through a skewed row or column.
+            fun merged(lines: List<Pair<Double, Int>>): List<Double> {
+                val out = ArrayList<Pair<Double, Int>>()
+                for ((v, n) in lines) {
+                    val last = out.lastOrNull()
+                    if (last != null && v - last.first < r) out[out.size - 1] = ((last.first * last.second + v * n) / (last.second + n)) to (last.second + n)
+                    else out.add(v to n)
+                }
+                return out.map { it.first }
+            }
+            val rowLines = merged(cluster(members) { it.center.y }.map { c -> c.map { it.center.y }.average() to c.size })
+            val colLines = merged(cluster(members) { it.center.x }.map { c -> c.map { it.center.x }.average() to c.size })
+            // (Only circles already close to a line are snapped to it, so a skewed row keeps its own positions.)
+            fun near(lines: List<Double>, v: Double) = lines.minBy { abs(it - v) }
+            val snapped = members.map { m ->
+                val cx = near(colLines, m.center.x); val cy = near(rowLines, m.center.y)
+                Pt(if (abs(cx - m.center.x) < 0.4 * r) cx else m.center.x, if (abs(cy - m.center.y) < 0.4 * r) cy else m.center.y)
+            }.distinct()
+            var rows = rowLines.map { y -> snapped.filter { near(rowLines, it.y) == y }.sortedBy { it.x } }.filter { it.isNotEmpty() }
+            var cols = colLines.map { x -> snapped.filter { near(colLines, it.x) == x }.sortedBy { it.y } }.filter { it.isNotEmpty() }
+            // A line holding very few circles compared with the others is a stray detection, not part of the grid.
+            val strays = HashSet<Pt>()
+            if (cols.size >= 3) cols.filter { it.size < 0.2 * cols.maxOf { c -> c.size } }.forEach { strays.addAll(it) }
+            if (rows.size >= 3) rows.filter { it.size < 0.2 * rows.maxOf { c -> c.size } }.forEach { strays.addAll(it) }
+            if (strays.isNotEmpty()) {
+                rows = rows.map { row -> row.filter { it !in strays } }.filter { it.isNotEmpty() }
+                cols = cols.map { col -> col.filter { it !in strays } }.filter { it.isNotEmpty() }
+            }
             if (rows.size < 2 && cols.size < 2) continue
+            if (rows.size == 1 && rows[0].size !in 2..5) continue
             groups.add(BubbleGroup(rows, cols, r, classify(rows, cols), ""))
         }
         // Default names: the first number field (reading order) with 5+ digits is the roll / ID, else the widest;
@@ -271,11 +334,20 @@ object TemplateLearner {
         val ordered = groups.sortedWith(compareBy({ (it.top / 20).roundToInt() }, { it.left }))
         val numbers = ordered.filter { it.kind == GroupKind.NUMBER }
         val roll = numbers.firstOrNull { it.columns.size >= 5 } ?: numbers.maxByOrNull { it.columns.size }
+        // The set code: a letter row across if there is one, else the first letter column.
+        val letters = ordered.filter { it.kind == GroupKind.LETTERS }
+        // Set codes usually have 4 choices; between equals prefer a column (rows of circles also appear in
+        // printed "how to fill" examples).
+        fun choices(g: BubbleGroup) = if (g.rows.size == 1) g.rows[0].size else g.columns.maxOf { it.size }
+        val set = letters.sortedWith(compareBy({ abs(choices(it) - 4) }, { if (it.rows.size == 1) 1 else 0 })).firstOrNull()
         var codes = 0
+        var choices = 0
         for (g in ordered) when {
             g === roll -> g.name = "Roll"
+            g === set -> g.name = "Set"
             g.kind == GroupKind.NUMBER -> g.name = "Code ${++codes}"
-            g.kind == GroupKind.LETTERS -> g.name = "Set"
+            g.kind == GroupKind.LETTERS -> g.name = "Choice ${++choices}"
+            g.kind == GroupKind.NAME -> g.name = "Name"
         }
         return ordered
     }
@@ -295,26 +367,65 @@ object TemplateLearner {
             }
             val xs = lines { it.center.x }
             val ys = lines { it.center.y }
-            // Row spacing from the whole span, so small errors in single gaps don't add up.
-            val pitch = ys.zipWithNext { a, b -> b - a }.filter { it > 2 * r }.minOrNull()
-                ?.let { step -> (ys.last() - ys.first()) / Math.round((ys.last() - ys.first()) / step).coerceAtLeast(1) }
-            // Evenly spaced rows (gaps included) when the found rows fit a regular grid; else just the ends.
-            val regular = pitch != null && ys.all { y -> val k = (y - ys.first()) / pitch; abs(k - Math.round(k)) * pitch < 0.3 * r }
-            val rowsToTry = when {
-                pitch == null -> ys
-                regular -> (-1..(Math.round((ys.last() - ys.first()) / pitch).toInt() + 1)).map { ys.first() + it * pitch }
-                else -> listOf(ys.first() - pitch) + ys + (ys.last() + pitch)
-            }
             val prev = out
-            out = xs.flatMap { x ->
-                rowsToTry.mapNotNull { y ->
-                    val seen = prev.any { abs(it.center.x - x) < 0.5 * r && abs(it.center.y - y) < 0.5 * r }
-                    if (seen || looksLikeCircle(print, Pt(x, y), r)) Ring(Pt(x, y), r) else null
+            val grid = gridSteps(xs, r).flatMap { x ->
+                gridSteps(ys, r).mapNotNull { y ->
+                    // A circle found here keeps its measured position; a missing one is added on the grid.
+                    prev.firstOrNull { abs(it.center.x - x) < 0.5 * r && abs(it.center.y - y) < 0.5 * r }
+                        ?: if (looksLikeCircle(print, Pt(x, y), r)) Ring(Pt(x, y), r) else null
                 }
             }
+            // Keep circles that are off the ideal grid (sheets aren't always printed or photographed square),
+            // unless a confirmed grid circle sits on them (then they were just badly centred).
+            out = grid + prev.filter { p -> grid.none { it === p || dist(it.center, p.center) < 1.2 * r } }
             if (out.isEmpty()) return found
         }
-        return out
+        // Then each row on its own spacing, for rows printed or photographed slightly off the grid.
+        val extra = ArrayList<Ring>()
+        for (row in cluster(out) { it.center.y }) {
+            if (row.size < 2) continue
+            val y = row.map { it.center.y }.average()
+            for (x in gridSteps(row.map { it.center.x }.sorted(), r)) {
+                if ((out + extra).any { abs(it.center.x - x) < r && abs(it.center.y - y) < r }) continue
+                // Spacing along a skewed row is only approximately even: look around the expected spot.
+                var best: Pt? = null
+                var bestScore = 0.0
+                var dx = -1.2
+                while (dx <= 1.2 + 1e-9) {
+                    val p = Pt(x + dx, y)
+                    val score = circleScore(print, p, r)
+                    if (score > bestScore) { bestScore = score; best = p }
+                    dx += 0.2
+                }
+                if (best != null && looksLikeCircle(print, best, r)) extra.add(Ring(best, r))
+            }
+        }
+        return out + extra
+    }
+
+    /**
+     * Grid lines to try along one axis: every step of a regular grid (gaps included) plus one step past
+     * each end, or the found lines plus one step past each end when they aren't evenly spaced.
+     */
+    private fun gridSteps(lines: List<Double>, r: Double): List<Double> {
+        // Spacing from the whole span, so small errors in single gaps don't add up.
+        val pitch = lines.zipWithNext { a, b -> b - a }.filter { it > 2 * r }.minOrNull()
+            ?.let { step -> (lines.last() - lines.first()) / Math.round((lines.last() - lines.first()) / step).coerceAtLeast(1) }
+            ?: return lines
+        val regular = lines.all { v -> val k = (v - lines.first()) / pitch; abs(k - Math.round(k)) * pitch < 0.3 * r }
+        return if (regular) (-1..(Math.round((lines.last() - lines.first()) / pitch).toInt() + 1)).map { lines.first() + it * pitch }
+        else listOf(lines.first() - pitch) + lines + (lines.last() + pitch)
+    }
+
+    /** Average outline darkness at radius [r] around [c] (mm). */
+    private fun circleScore(print: FloatImage, c: Pt, r: Double): Double {
+        val s = PX_PER_MM
+        var sum = 0.0
+        for (k in 0 until 24) {
+            val a = 2 * Math.PI * k / 24
+            sum += print.sample((c.x + r * kotlin.math.cos(a)) * s, (c.y + r * kotlin.math.sin(a)) * s)
+        }
+        return sum / 24
     }
 
     /** A dark outline all the way round at radius [r] around [c] (mm). */
@@ -338,6 +449,8 @@ object TemplateLearner {
         val tallest = cols.maxOf { it.size }
         val widest = rows.maxOf { it.size }
         return when {
+            rows.size == 1 && widest in 2..5 -> GroupKind.LETTERS // e.g. a set code printed across: ক খ গ ঘ
+            tallest in 24..27 && widest >= 6 -> GroupKind.NAME // a column per letter, A–Z
             tallest == 10 && widest !in 4..5 -> GroupKind.NUMBER
             cols.size == 1 && tallest in 2..5 -> GroupKind.LETTERS
             widest in 2..6 && rows.size >= 2 -> GroupKind.ANSWERS

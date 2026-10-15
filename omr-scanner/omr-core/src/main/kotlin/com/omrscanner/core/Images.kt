@@ -11,6 +11,24 @@ class ArgbImage(val width: Int, val height: Int, val pixels: IntArray) {
     init {
         require(width > 0 && height > 0 && pixels.size == width * height) { "pixel array does not match ${width}x$height" }
     }
+
+    /** This image turned clockwise by [quarterTurns] × 90°. */
+    fun rotated(quarterTurns: Int): ArgbImage {
+        val q = ((quarterTurns % 4) + 4) % 4
+        if (q == 0) return this
+        val w = if (q == 2) width else height
+        val h = if (q == 2) height else width
+        val out = IntArray(pixels.size)
+        for (y in 0 until height) for (x in 0 until width) {
+            val (nx, ny) = when (q) {
+                1 -> (height - 1 - y) to x
+                2 -> (width - 1 - x) to (height - 1 - y)
+                else -> y to (width - 1 - x)
+            }
+            out[ny * w + nx] = pixels[y * width + x]
+        }
+        return ArgbImage(w, h, out)
+    }
 }
 
 /** Single-channel float image; pixel centres sit on integer coordinates. */

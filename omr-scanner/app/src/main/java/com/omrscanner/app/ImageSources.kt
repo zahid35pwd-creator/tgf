@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.ExifInterface
 import android.net.Uri
 import android.provider.MediaStore
 import com.omrscanner.core.ArgbImage
@@ -83,6 +84,21 @@ object ImageSources {
         bmp.getPixels(pixels, 0, bmp.width, 0, 0, bmp.width, bmp.height)
         val image = ArgbImage(bmp.width, bmp.height, pixels)
         bmp.recycle()
-        return image
+        // Cameras store pictures as the sensor sees them and record the turn needed in the EXIF data.
+        return image.rotated(exifQuarterTurns(context, uri))
+    }
+
+    /** Clockwise quarter turns the picture's EXIF data asks for (0 if none or unreadable). */
+    private fun exifQuarterTurns(context: Context, uri: Uri): Int = try {
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            when (ExifInterface(stream).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                ExifInterface.ORIENTATION_ROTATE_90, ExifInterface.ORIENTATION_TRANSPOSE -> 1
+                ExifInterface.ORIENTATION_ROTATE_180, ExifInterface.ORIENTATION_FLIP_VERTICAL -> 2
+                ExifInterface.ORIENTATION_ROTATE_270, ExifInterface.ORIENTATION_TRANSVERSE -> 3
+                else -> 0
+            }
+        } ?: 0
+    } catch (e: Exception) {
+        0
     }
 }

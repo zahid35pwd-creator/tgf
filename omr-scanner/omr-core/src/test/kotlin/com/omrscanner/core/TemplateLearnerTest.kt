@@ -92,4 +92,31 @@ class TemplateLearnerTest {
         assertSameQuestions(t, back, 50, 0.01)
         assertSameField(t.field("Roll")!!, back.field("Roll")!!, 0.01)
     }
+
+    @Test
+    fun learnsSchoolSheet() {
+        val l = learn(resource("school-30"), "SCHOOL")
+        assertEquals(Alignment.PAGE_EDGES, l.alignment)
+        val t = l.toTemplate("x", "school", "Roll", "Set", SheetSpec.BANGLA_LABELS)
+        assertEquals(30, t.maxQuestions)
+        assertTrue(t.questions.all { it.size == 4 }, "4 options each")
+        assertEquals(6, t.field("Roll")!!.columns.size)
+        assertEquals(listOf(10, 3), l.groups.filter { it.kind == GroupKind.NUMBER && it.name != "Roll" }.map { it.columns.size })
+        assertEquals(4, t.field("Set")!!.columns.single().size, "set code ক খ গ ঘ printed across")
+        assertEquals(5, l.groups.single { it.kind == GroupKind.LETTERS && it.name != "Set" }.columns.single().size, "class ৬ষ্ঠ–১০ম")
+    }
+
+    @Test
+    fun learnsCuetSheet() {
+        val l = learn(resource("cuet-50"), "CUET")
+        assertEquals(Alignment.PAGE_EDGES, l.alignment)
+        val t = l.toTemplate("x", "cuet", "Roll", null, SheetSpec.LATIN_LABELS)
+        assertEquals(50, t.maxQuestions)
+        assertTrue(t.questions.all { it.size == 4 }, "4 options each: " + t.questions.withIndex().filter { it.value.size != 4 }.map { "Q${it.index + 1} " + it.value.joinToString { p -> "(%.1f,%.1f)".format(p.x, p.y) } })
+        val name = t.field("Name")!!
+        assertEquals(24, name.columns.size, "name columns at " + name.columns.joinToString { "%.1f(${it.size})".format(it[0].x) })
+        assertTrue(name.columns.all { it.size == 26 }, "A–Z in every name column")
+        assertEquals(7, t.field("Roll")!!.columns.size)
+        assertEquals(listOf(3, 3), l.groups.filter { it.kind == GroupKind.NUMBER && it.name != "Roll" }.map { it.columns.size })
+    }
 }

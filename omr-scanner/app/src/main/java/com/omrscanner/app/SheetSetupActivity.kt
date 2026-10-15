@@ -141,7 +141,7 @@ class SheetSetupActivity : Activity() {
         val top = card()
         top.add(text("Check what was found", 20f, bold = true), block(6))
         val questions = l.groups.filter { it.kind == GroupKind.ANSWERS }.sumOf { it.rows.size }
-        val numbers = l.groups.count { it.kind == GroupKind.NUMBER || it.kind == GroupKind.LETTERS }
+        val numbers = l.groups.count { it.isField }
         top.add(text(
             "$questions questions and $numbers number/letter fields. " +
                 (if (l.alignment == Alignment.MARKERS) "Lined up by the 4 corner squares." else "No corner squares: filled sheets are lined up by the page edges, so photograph them on a darker surface.") +
@@ -159,6 +159,11 @@ class SheetSetupActivity : Activity() {
             })
         }
         top.add(nameField, block(8))
+        top.add(text("Is the sheet the right way up in the picture below? If not, turn it:", 13f, Ui.MUTED), block(4))
+        val turn = horizontal()
+        turn.add(button("Rotate 90°", ButtonStyle.SECONDARY) { rotate(1) }, weighted().apply { marginEnd = dp(8) })
+        turn.add(button("Turn upside down", ButtonStyle.SECONDARY) { rotate(2) }, weighted())
+        top.add(turn, block(10))
         val letters = RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL }
         letters.addView(RadioButton(this).apply { text = "A B C D"; id = 1 })
         letters.addView(RadioButton(this).apply { text = "ক খ গ ঘ"; id = 2 })
@@ -177,7 +182,7 @@ class SheetSetupActivity : Activity() {
         preview = ImageView(this).apply { adjustViewBounds = true; scaleType = ImageView.ScaleType.FIT_CENTER }
         holder.add(preview, block(0))
         page.add(holder, block(6))
-        page.add(text("Blue: answers (with question numbers) • Green: number fields • Purple: letter codes • Grey: ignored", 13f, Ui.MUTED), block(12))
+        page.add(text("Blue: answers (with question numbers) • Green: number fields • Purple: letter codes • Orange: name (A–Z) • Grey: ignored", 13f, Ui.MUTED), block(12))
 
         val list = card()
         list.add(text("Detected areas", 16f, bold = true), block(4))
@@ -188,6 +193,28 @@ class SheetSetupActivity : Activity() {
         page.add(button("Save sheet type") { save() })
         page.add(button("Start again with another file", ButtonStyle.SECONDARY) { showIntro() })
         redraw()
+    }
+
+    /** Turns the flattened sheet clockwise by [quarterTurns] × 90° and studies it again. */
+    private fun rotate(quarterTurns: Int) {
+        val l = learned ?: return
+        val box = vertical(32).apply { gravity = Gravity.CENTER; setBackgroundColor(Ui.BACKGROUND) }
+        box.add(ProgressBar(this), LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(16) })
+        box.add(text("Turning the sheet…", 17f, Ui.MUTED), LinearLayout.LayoutParams(-2, -2))
+        setContentView(box)
+        Thread {
+            val result = try { TemplateLearner.learn(l.page.rotated(quarterTurns), keepOrientation = true) } catch (e: Exception) { null }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (result == null) { toast("Could not turn the sheet."); showReview(); return@runOnUiThread }
+                val keepName = name
+                val keepBangla = bangla
+                start(result)
+                name = keepName
+                bangla = keepBangla
+                showReview()
+            }
+        }.start()
     }
 
     private fun groupRow(i: Int): View {
@@ -202,13 +229,13 @@ class SheetSetupActivity : Activity() {
             background = rounded(Ui.PRIMARY_LIGHT, dp(14).toFloat())
             setOnClickListener {
                 g.kind = GroupKind.entries[(g.kind.ordinal + 1) % GroupKind.entries.size]
-                if (g.kind == GroupKind.NUMBER || g.kind == GroupKind.LETTERS) { if (g.name.isBlank()) g.name = "Code ${i + 1}" }
+                if (g.isField) { if (g.name.isBlank()) g.name = "Code ${i + 1}" }
                 showReview()
             }
         }
         head.add(type)
         row.add(head, block(4))
-        if (g.kind == GroupKind.NUMBER || g.kind == GroupKind.LETTERS) {
+        if (g.isField) {
             val line = horizontal()
             val nameEdit = EditText(this).apply {
                 setText(g.name)
@@ -239,6 +266,7 @@ class SheetSetupActivity : Activity() {
         GroupKind.ANSWERS -> "Answers"
         GroupKind.NUMBER -> "Number"
         GroupKind.LETTERS -> "Letters"
+        GroupKind.NAME -> "Name A–Z"
         GroupKind.IGNORE -> "Ignore"
     }
 
@@ -246,6 +274,7 @@ class SheetSetupActivity : Activity() {
         GroupKind.ANSWERS -> Ui.BLUE
         GroupKind.NUMBER -> Ui.GREEN
         GroupKind.LETTERS -> Ui.PURPLE
+        GroupKind.NAME -> Ui.ORANGE
         GroupKind.IGNORE -> Ui.MUTED
     }
 
@@ -286,7 +315,7 @@ class SheetSetupActivity : Activity() {
 
     private fun save() {
         val l = learned ?: return
-        val fields = l.groups.filter { it.kind == GroupKind.NUMBER || it.kind == GroupKind.LETTERS }
+        val fields = l.groups.filter { it.isField }
         when {
             name.isBlank() -> { toast("Give the sheet type a name"); return }
             l.groups.none { it.kind == GroupKind.ANSWERS } -> { toast("Mark at least one area as Answers"); return }

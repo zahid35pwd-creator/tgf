@@ -52,10 +52,13 @@ class FieldReading(
     val scores: List<DoubleArray>,
 ) {
     val name get() = def.name
-    val text: String get() = values.joinToString("") { v -> v?.let { def.labels[it] } ?: "?" }
+    val text: String get() =
+        // A name grid: unfilled columns are spaces, not unreadable digits.
+        if (def.labels == ALPHABET) values.joinToString("") { v -> v?.let { def.labels[it] } ?: " " }.trim().replace(Regex(" +"), " ")
+        else values.joinToString("") { v -> v?.let { def.labels[it] } ?: "?" }
 
     /** ASCII form: digits as 0–9, letter options as A, B, … */
-    val ascii: String get() = values.joinToString("") { v ->
+    val ascii: String get() = if (def.labels == ALPHABET) text else values.joinToString("") { v ->
         when {
             v == null -> "?"
             def.labels == SheetTemplate.DIGITS || def.labels == SheetTemplate.BANGLA_DIGITS -> v.toString()

@@ -95,4 +95,56 @@ class LearnedSheetTest {
         val blank = SyntheticSheets.render(FilledSheet(SheetSpec(100, 4), emptyList(), emptyList()), 8.0, Random(0), handwriting = false)
         check("own-nosquares", withoutSquares(blank, SheetTemplate.OMR_SCANNER), SheetTemplate.OMR_SCANNER, "Roll", 100, 8, 3400, Alignment.PAGE_EDGES, 6, darkBackground = true)
     }
+
+    /**
+     * Sheets known only from a (low-resolution) picture: learn the layout, fill it in at the learned
+     * positions, photograph it and read it back with the learned template.
+     */
+    private fun selfCheck(label: String, name: String, trials: Int, seed: Int, setName: String?) {
+        val blank = resource(name)
+        val learned = TemplateLearner.learn(SyntheticSheets.toArgb(blank))
+        val t = learned.toTemplate("learned", label, "Roll", setName, SheetSpec.LATIN_LABELS)
+        val pxPerMm = blank.width / 210.0
+        var read = 0
+        val misreads = ArrayList<String>()
+        for (trial in 0 until trials) {
+            val rng = Random(seed + trial)
+            val img = copy(blank)
+            val g = img.createGraphics()
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            g.scale(pxPerMm, pxPerMm)
+            val answers = t.questions.map { opts -> if (rng.nextInt(12) == 0) emptyList() else listOf(rng.nextInt(opts.size)) }
+            answers.forEachIndexed { q, a -> for (o in a) SyntheticSheets.scribble(g, t.questions[q][o], t.answerRadius, Ink.BLACK_PEN, rng) }
+            val expected = t.fields.associate { f ->
+                f.name to f.columns.map { col -> rng.nextInt(col.size).also { SyntheticSheets.scribble(g, col[it], f.radius, Ink.BLACK_PEN, rng) } as Int? }
+            }
+            g.dispose()
+            val p = SyntheticSheets.PhotoParams(
+                width = 2448, height = 3264, rotation = listOf(0.0, 90.0, 180.0, 270.0)[trial % 4] + rng.nextDouble(-8.0, 8.0),
+                coverage = rng.nextDouble(0.7, 0.9), perspective = rng.nextDouble(0.0, 0.05), curl = rng.nextDouble(0.0, 1.0),
+                shading = 0.2, noise = 3.0, blurRadius = 1, background = listOf(0x7A5A3C, 0x3A3A40, 0x202020).random(rng),
+            )
+            val photo = SyntheticSheets.photograph(img, pxPerMm, p, rng)
+            if (trial == 0) outDir?.let { ImageIO.write(photo, "jpg", File(it, "learned-$label.jpg")) }
+            val desc = "$label trial $trial (rot %.0f, cov %.2f, persp %.2f)".format(p.rotation, p.coverage, p.perspective)
+            try {
+                val r = OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(template = t, questionCount = t.maxQuestions, optionCount = 4))
+                val wrong = answers.indices.filter { answers[it] != r.answers[it].marked.sorted() && !r.answers[it].needsReview }
+                val badFields = t.fields.filter { expected[it.name] != r.field(it.name)?.values }.map { "${it.name} ${r.field(it.name)?.values} vs ${expected[it.name]}" }
+                if (wrong.isNotEmpty() || badFields.isNotEmpty()) misreads.add("$desc: wrong ${wrong.map { it + 1 }} $badFields")
+                else { read++; println("$desc ok") }
+            } catch (e: OmrException) {
+                println("$desc refused: ${e.message}")
+            }
+        }
+        misreads.forEach { println("MISREAD $it") }
+        assertTrue(misreads.isEmpty(), misreads.joinToString("\n"))
+        assertTrue(read >= trials - 1, "$label: only $read/$trials read")
+    }
+
+    @Test
+    fun schoolSheetLearnedFromPicture() = selfCheck("school", "school-30", 6, 3500, "Set")
+
+    @Test
+    fun cuetSheetLearnedFromPicture() = selfCheck("cuet", "cuet-50", 6, 3600, null)
 }
