@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OMR Sheet Reader</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel2: #273449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent2: #22c55e;
+    --danger: #f87171;
+    --warn: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 14px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .panel h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  input[type=file] { font-size: 12px; }
+  input[type=range] { width: 100%; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  button {
+    background: var(--accent);
+    color: #06202f;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  button.secondary {
+    background: var(--panel2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.danger { background: var(--danger); color: #2a0a0a; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  .block-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: var(--panel2);
+  }
+  .block-card .head {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--muted); margin-bottom: 6px;
+  }
+  .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .status-dot.ok { background: var(--accent2); }
+  .status-dot.pending { background: var(--warn); }
+  .canvas-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    overflow: auto;
+    max-height: 80vh;
+  }
+  .canvas-toolbar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;
+  }
+  .hint {
+    font-size: 12px; color: var(--accent); background: rgba(56,189,248,.1);
+    border: 1px solid rgba(56,189,248,.3); padding: 6px 10px; border-radius: 6px;
+    margin-bottom: 10px;
+  }
+  canvas { display: block; cursor: crosshair; background: #fff; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+  th, td { border-bottom: 1px solid var(--border); padding: 5px 6px; text-align: center; }
+  th { color: var(--muted); font-weight: 600; }
+  tr.correct td.status { color: var(--accent2); }
+  tr.wrong td.status { color: var(--danger); }
+  tr.blank td.status { color: var(--muted); }
+  tr.multiple td.status { color: var(--warn); }
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .summary .stat {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .summary .stat .n { font-size: 20px; font-weight: 700; }
+  .summary .stat .l { font-size: 11px; color: var(--muted); }
+  .table-scroll { max-height: 320px; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<h1>OMR Sheet Reader</h1>
+<p class="sub">Upload a scanned/photographed answer sheet, calibrate the bubble grid, provide the answer key, and get the student's score.</p>
+
+<div class="layout">
+  <div class="left">
+
+    <div class="panel">
+      <h2>1. Answer Sheet Image</h2>
+      <input type="file" id="imgInput" accept="image/*">
+      <label>Bubble radius (px, for sampling)</label>
+      <input type="range" id="radiusRange" min="4" max="40" value="12">
+      <div class="sub" id="radiusVal" style="margin:2px 0 0;">12 px</div>
+    </div>
+
+    <div class="panel">
+      <h2>2. Grid Blocks</h2>
+      <div id="blockList"></div>
+      <button id="addBlockBtn" class="secondary" type="button">+ Add block (column)</button>
+      <div class="hint" style="margin-top:10px;">
+        For each block: set rows (questions), options (choices per question),
+        then click <b>Calibrate</b> and click the <b>center of the first bubble</b>
+        (Q = start, option 1) then the <b>center of the last bubble</b>
+        (last question in block, last option) on the image.
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>3. Answer Key</h2>
+      <label>One answer per question, comma/space/newline separated (e.g. A,B,C,D,...)</label>
+      <textarea id="answerKey" placeholder="A, B, C, D, A, B, ..."></textarea>
+    </div>
+
+    <div class="panel">
+      <h2>4. Scoring</h2>
+      <div class="row">
+        <div>
+          <label>Marks per correct answer</label>
+          <input type="number" id="marksCorrect" value="1" step="0.5">
+        </div>
+        <div>
+          <label>Negative marks per wrong</label>
+          <input type="number" id="marksWrong" value="0" step="0.25" min="0">
+        </div>
+      </div>
+      <label>Fill threshold (higher = requires darker mark)</label>
+      <input type="range" id="fillThreshold" min="10" max="150" value="60">
+      <label>Ambiguity margin (gap needed between top two options)</label>
+      <input type="range" id="marginThreshold" min="0" max="80" value="20">
+      <button id="detectBtn" type="button" disabled>Detect &amp; Score</button>
+      <button id="csvBtn" class="secondary" type="button" disabled>Export CSV</button>
+    </div>
+
+  </div>
+
+  <div class="right">
+    <div class="canvas-wrap">
+      <div class="canvas-toolbar">
+        <label style="margin:0;">Zoom</label>
+        <input type="range" id="zoomRange" min="20" max="200" value="60" style="width:160px;">
+        <span id="zoomVal" style="font-size:12px;color:var(--muted);">60%</span>
+      </div>
+      <div id="calibHint" class="hint" style="display:none;"></div>
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="panel" id="resultsPanel" style="display:none;">
+      <h2>Results</h2>
+      <div class="summary" id="summary"></div>
+      <div class="table-scroll">
+        <table id="resultsTable">
+          <thead><tr><th>Q#</th><th>Key</th><th>Detected</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- Pure OMR detection logic (no DOM dependency) ---------- */
+
+function buildGridPositions(topLeft, bottomRight, rows, cols) {
+  const positions = [];
+  for (let r = 0; r < rows; r++) {
+    const t = rows > 1 ? r / (rows - 1) : 0;
+    const y = topLeft.y + (bottomRight.y - topLeft.y) * t;
+    const rowArr = [];
+    for (let c = 0; c < cols; c++) {
+      const s = cols > 1 ? c / (cols - 1) : 0;
+      const x = topLeft.x + (bottomRight.x - topLeft.x) * s;
+      rowArr.push({ x, y });
+    }
+    positions.push(rowArr);
+  }
+  return positions;
+}
+
+function sampleBubbleDarkness(data, width, height, cx, cy, radius) {
+  let total = 0, count = 0;
+  const r2 = radius * radius;
+  const minX = Math.max(0, Math.floor(cx - radius));
+  const maxX = Math.min(width - 1, Math.ceil(cx + radius));
+  const minY = Math.max(0, Math.floor(cy - radius));
+  const maxY = Math.min(height - 1, Math.ceil(cy + radius));
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const dx = x - cx, dy = y - cy;
+      if (dx * dx + dy * dy <= r2) {
+        const idx = (y * width + x) * 4;
+        const gray = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+        total += gray;
+        count++;
+      }
+    }
+  }
+  return count ? total / count : 255;
+}
+
+// darknessValues: avg gray (0-255, lower = darker/filled) per option in a row
+function detectRowAnswer(darknessValues, fillThreshold, marginThreshold) {
+  const scores = darknessValues.map(v => 255 - v); // higher = more filled
+  let maxIdx = 0;
+  for (let i = 1; i < scores.length; i++) if (scores[i] > scores[maxIdx]) maxIdx = i;
+  const maxScore = scores[maxIdx];
+  let secondMax = -Infinity;
+  for (let i = 0; i < scores.length; i++) if (i !== maxIdx && scores[i] > secondMax) secondMax = scores[i];
+
+  if (maxScore < fillThreshold) return { status: 'blank', index: -1 };
+
+  const filledCount = scores.filter(s => s >= fillThreshold).length;
+  if (filledCount > 1 && (maxScore - secondMax) < marginThreshold) {
+    return { status: 'multiple', index: -1 };
+  }
+  return { status: 'marked', index: maxIdx };
+}
+
+function parseAnswerKey(text) {
+  return text
+    .split(/[\s,;]+/)
+    .map(t => t.trim())
+    .filter(Boolean)
+    .map(t => {
+      const cleaned = t.replace(/^\d+[:.)\-]*/, '').trim().toUpperCase();
+      return cleaned.charAt(0);
+    })
+    .filter(Boolean);
+}
+
+function scoreSheet(detectedLetters, answerKey, marksCorrect, marksWrong) {
+  let correct = 0, wrong = 0, blank = 0, multiple = 0, score = 0;
+  const details = [];
+  const n = Math.max(detectedLetters.length, answerKey.length);
+  for (let i = 0; i < n; i++) {
+    const key = answerKey[i] || null;
+    const det = detectedLetters[i] || null;
+    let status;
+    if (!det) { status = 'blank'; blank++; }
+    else if (det === 'MULTI') { status = 'multiple'; multiple++; score -= marksWrong; }
+    else if (key && det === key) { status = 'correct'; correct++; score += marksCorrect; }
+    else { status = 'wrong'; wrong++; score -= marksWrong; }
+    details.push({ q: i + 1, key: key || '-', detected: det === 'MULTI' ? 'multi' : (det || '-'), status });
+  }
+  return { correct, wrong, blank, multiple, score, details };
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = { buildGridPositions, sampleBubbleDarkness, detectRowAnswer, parseAnswerKey, scoreSheet };
+}
+
+/* ---------- UI wiring ---------- */
+(function () {
+  if (typeof document === 'undefined') return;
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let img = null;
+  let blocks = [];
+  let blockIdSeq = 1;
+  let calibrating = null; // { blockId, stage: 0|1 }
+  let lastResults = null;
+
+  function newBlock() {
+    return {
+      id: blockIdSeq++,
+      startQ: blocks.length ? (blocks[blocks.length - 1].startQ + blocks[blocks.length - 1].rows) : 1,
+      rows: 10,
+      options: 'A,B,C,D',
+      topLeft: null,
+      bottomRight: null,
+    };
+  }
+
+  blocks.push(newBlock());
+
+  function renderBlockList() {
+    const list = document.getElementById('blockList');
+    list.innerHTML = '';
+    blocks.forEach((b, i) => {
+      const card = document.createElement('div');
+      card.className = 'block-card';
+      const calibrated = b.topLeft && b.bottomRight;
+      card.innerHTML = `
+        <div class="head">
+          <span><span class="status-dot ${calibrated ? 'ok' : 'pending'}"></span>Block ${i + 1}</span>
+          ${blocks.length > 1 ? '<button class="secondary danger-remove" style="margin:0;padding:2px 8px;font-size:11px;" data-act="remove">Remove</button>' : ''}
+        </div>
+        <div class="row">
+          <div>
+            <label>Start Q#</label>
+            <input type="number" min="1" value="${b.startQ}" data-act="startQ">
+          </div>
+          <div>
+            <label>Rows (questions)</label>
+            <input type="number" min="1" value="${b.rows}" data-act="rows">
+          </div>
+        </div>
+        <label>Option labels (comma separated)</label>
+        <input type="text" value="${b.options}" data-act="options">
+        <button data-act="calibrate" class="secondary" type="button">
+          ${calibrated ? 'Re-calibrate' : 'Calibrate'}
+        </button>
+      `;
+      card.querySelector('[data-act=startQ]').addEventListener('input', e => { b.startQ = parseInt(e.target.value) || 1; updateDetectEnabled(); });
+      card.querySelector('[data-act=rows]').addEventListener('input', e => { b.rows = parseInt(e.target.value) || 1; updateDetectEnabled(); });
+      card.querySelector('[data-act=options]').addEventListener('input', e => { b.options = e.target.value; });
+      card.querySelector('[data-act=calibrate]').addEventListener('click', () => startCalibration(b.id));
+      const rm = card.querySelector('[data-act=remove]');
+      if (rm) rm.addEventListener('click', () => { blocks = blocks.filter(x => x.id !== b.id); renderBlockList(); drawCanvas(); updateDetectEnabled(); });
+      list.appendChild(card);
+    });
+  }
+
+  function optionArr(b) {
+    return b.options.split(',').map(s => s.trim()).filter(Boolean);
+  }
+
+  document.getElementById('addBlockBtn').addEventListener('click', () => {
+    blocks.push(newBlock());
+    renderBlockList();
+  });
+
+  function startCalibration(blockId) {
+    calibrating = { blockId, stage: 0 };
+    const hint = document.getElementById('calibHint');
+    hint.style.display = 'block';
+    hint.textContent = 'Click the CENTER of the first bubble (start question, first option).';
+  }
+
+  function getRadius() {
+    return parseInt(document.getElementById('radiusRange').value, 10);
+  }
+
+  document.getElementById('radiusRange').addEventListener('input', e => {
+    document.getElementById('radiusVal').textContent = e.target.value + ' px';
+    drawCanvas();
+  });
+
+  document.getElementById('zoomRange').addEventListener('input', e => {
+    document.getElementById('zoomVal').textContent = e.target.value + '%';
+    applyZoom();
+  });
+
+  function applyZoom() {
+    if (!img) return;
+    const zoom = parseInt(document.getElementById('zoomRange').value, 10) / 100;
+    canvas.style.width = (img.naturalWidth * zoom) + 'px';
+    canvas.style.height = (img.naturalHeight * zoom) + 'px';
+  }
+
+  document.getElementById('imgInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const image = new Image();
+      image.onload = () => {
+        img = image;
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        applyZoom();
+        drawCanvas();
+        updateDetectEnabled();
+      };
+      image.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  canvas.addEventListener('click', e => {
+    if (!calibrating || !img) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    const block = blocks.find(b => b.id === calibrating.blockId);
+    if (!block) { calibrating = null; return; }
+
+    if (calibrating.stage === 0) {
+      block.topLeft = { x, y };
+      calibrating.stage = 1;
+      document.getElementById('calibHint').textContent = 'Now click the CENTER of the LAST bubble (last question in this block, last option).';
+    } else {
+      block.bottomRight = { x, y };
+      calibrating = null;
+      document.getElementById('calibHint').style.display = 'none';
+    }
+    renderBlockList();
+    drawCanvas();
+    updateDetectEnabled();
+  });
+
+  function drawCanvas(resultsOverlay) {
+    if (!img) return;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const radius = getRadius();
+
+    blocks.forEach(b => {
+      if (!b.topLeft || !b.bottomRight) return;
+      const opts = optionArr(b);
+      const grid = buildGridPositions(b.topLeft, b.bottomRight, b.rows, opts.length);
+      grid.forEach((row, ri) => {
+        row.forEach((pt, ci) => {
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(56,189,248,0.55)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        });
+      });
+      [b.topLeft, b.bottomRight].forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#f472b6';
+        ctx.fill();
+      });
+    });
+
+    if (resultsOverlay) {
+      resultsOverlay.forEach(o => {
+        ctx.beginPath();
+        ctx.arc(o.x, o.y, getRadius() + 3, 0, Math.PI * 2);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = o.color;
+        ctx.stroke();
+      });
+    }
+  }
+
+  function updateDetectEnabled() {
+    const ready = img && blocks.length > 0 && blocks.every(b => b.topLeft && b.bottomRight);
+    document.getElementById('detectBtn').disabled = !ready;
+  }
+
+  document.getElementById('detectBtn').addEventListener('click', runDetection);
+  document.getElementById('fillThreshold').addEventListener('input', () => { if (lastResults) runDetection(); });
+  document.getElementById('marginThreshold').addEventListener('input', () => { if (lastResults) runDetection(); });
+
+  function runDetection() {
+    if (!img) return;
+    drawCanvas(); // reset overlay
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const radius = getRadius();
+    const fillThreshold = parseInt(document.getElementById('fillThreshold').value, 10);
+    const marginThreshold = parseInt(document.getElementById('marginThreshold').value, 10);
+
+    const sortedBlocks = [...blocks].sort((a, b) => a.startQ - b.startQ);
+    const detectedByQ = {};
+    const overlay = [];
+
+    sortedBlocks.forEach(b => {
+      const opts = optionArr(b);
+      const grid = buildGridPositions(b.topLeft, b.bottomRight, b.rows, opts.length);
+      grid.forEach((row, ri) => {
+        const darkness = row.map(pt => sampleBubbleDarkness(data, canvas.width, canvas.height, pt.x, pt.y, radius));
+        const res = detectRowAnswer(darkness, fillThreshold, marginThreshold);
+        const qNum = b.startQ + ri;
+        let letter = null;
+        if (res.status === 'marked') letter = opts[res.index];
+        else if (res.status === 'multiple') letter = 'MULTI';
+        detectedByQ[qNum] = letter;
+
+        row.forEach((pt, ci) => {
+          if (res.status === 'marked' && ci === res.index) {
+            overlay.push({ x: pt.x, y: pt.y, color: '#38bdf8' });
+          }
+        });
+      });
+    });
+
+    const maxQ = Math.max(...Object.keys(detectedByQ).map(Number));
+    const detectedLetters = [];
+    for (let q = 1; q <= maxQ; q++) detectedLetters.push(detectedByQ[q] || null);
+
+    const answerKey = parseAnswerKey(document.getElementById('answerKey').value);
+    const marksCorrect = parseFloat(document.getElementById('marksCorrect').value) || 0;
+    const marksWrong = parseFloat(document.getElementById('marksWrong').value) || 0;
+
+    const results = scoreSheet(detectedLetters, answerKey, marksCorrect, marksWrong);
+    lastResults = results;
+
+    // recolor overlay by correctness
+    overlay.length = 0;
+    sortedBlocks.forEach(b => {
+      const opts = optionArr(b);
+      const grid = buildGridPositions(b.topLeft, b.bottomRight, b.rows, opts.length);
+      grid.forEach((row, ri) => {
+        const qNum = b.startQ + ri;
+        const detail = results.details[qNum - 1];
+        row.forEach((pt, ci) => {
+          const letter = opts[ci];
+          const isDetected = detail && (detail.detected === letter || (detail.detected === 'multi' && detectedByQ[qNum] === 'MULTI'));
+          if (isDetected) {
+            let color = '#94a3b8';
+            if (detail.status === 'correct') color = '#22c55e';
+            else if (detail.status === 'wrong') color = '#f87171';
+            else if (detail.status === 'multiple') color = '#fbbf24';
+            overlay.push({ x: pt.x, y: pt.y, color });
+          }
+        });
+      });
+    });
+    drawCanvas(overlay);
+    renderResults(results);
+    document.getElementById('csvBtn').disabled = false;
+  }
+
+  function renderResults(results) {
+    const panel = document.getElementById('resultsPanel');
+    panel.style.display = 'block';
+    const maxScore = results.details.filter(d => d.key !== '-').length * (parseFloat(document.getElementById('marksCorrect').value) || 0);
+    document.getElementById('summary').innerHTML = `
+      <div class="stat"><div class="n">${results.score}</div><div class="l">Score / ${maxScore}</div></div>
+      <div class="stat"><div class="n">${results.correct}</div><div class="l">Correct</div></div>
+      <div class="stat"><div class="n">${results.wrong}</div><div class="l">Wrong</div></div>
+      <div class="stat"><div class="n">${results.blank}</div><div class="l">Blank</div></div>
+      <div class="stat"><div class="n">${results.multiple}</div><div class="l">Multi-mark</div></div>
+    `;
+    const tbody = document.querySelector('#resultsTable tbody');
+    tbody.innerHTML = '';
+    results.details.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.className = d.status;
+      tr.innerHTML = `<td>${d.q}</td><td>${d.key}</td><td>${d.detected}</td><td class="status">${d.status}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById('csvBtn').addEventListener('click', () => {
+    if (!lastResults) return;
+    let csv = 'Question,Key,Detected,Status\n';
+    lastResults.details.forEach(d => { csv += `${d.q},${d.key},${d.detected},${d.status}\n`; });
+    csv += `\nScore,${lastResults.score}\nCorrect,${lastResults.correct}\nWrong,${lastResults.wrong}\nBlank,${lastResults.blank}\nMultiple,${lastResults.multiple}\n`;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'omr_results.csv';
+    a.click();
+  });
+
+  renderBlockList();
+})();
+</script>
+</body>
+</html>
