@@ -76,6 +76,13 @@ internal object ImageOps {
         return out
     }
 
+    /** The red channel: pink, magenta and red print look almost white, black and blue ink stay dark. */
+    fun redChannel(src: ArgbImage): FloatImage {
+        val out = FloatImage(src.width, src.height)
+        for (i in src.pixels.indices) out.data[i] = ((src.pixels[i] shr 16) and 0xFF).toFloat()
+        return out
+    }
+
     /**
      * Converts luminance to "darkness" in 0..1 relative to the local paper brightness, which removes
      * shadows and uneven lighting. Paper brightness is estimated with a coarse max filter that is wider

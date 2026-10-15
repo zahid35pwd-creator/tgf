@@ -18,6 +18,8 @@ class AnswerKeyActivity : Activity() {
     private lateinit var key: MutableList<Int?>
     private lateinit var rows: LinearLayout
     private lateinit var status: TextView
+    private lateinit var setRow: LinearLayout
+    private var currentSet: Int? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +40,9 @@ class AnswerKeyActivity : Activity() {
         top.add(editRow, block(0))
         page.add(top, block(16))
 
+        setRow = horizontal()
+        page.add(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(setRow) }, block(12))
+
         rows = card().apply { setPadding(dp(12), dp(8), dp(12), dp(8)) }
         page.add(rows, block(0))
     }
@@ -45,7 +50,8 @@ class AnswerKeyActivity : Activity() {
     override fun onResume() {
         super.onResume()
         settings = store.settings
-        key = store.key.toMutableList()
+        key = store.storedKey(currentSet).toMutableList()
+        buildSetChips()
         buildRows()
     }
 
@@ -60,7 +66,7 @@ class AnswerKeyActivity : Activity() {
                 paintBubble(bubble, key[q] == o)
                 bubble.setOnClickListener {
                     key[q] = if (key[q] == o) null else o
-                    store.key = key
+                    store.saveKey(currentSet, key)
                     for (i in 0 until settings.optionCount) paintBubble(row.getChildAt(i + 1) as TextView, key[q] == i)
                     updateStatus()
                 }
@@ -71,6 +77,31 @@ class AnswerKeyActivity : Activity() {
         updateStatus()
     }
 
+    /** One key per question set (e.g. ক খ গ ঘ); "All sets" is used for any set without its own key. */
+    private fun buildSetChips() {
+        setRow.removeAllViews()
+        val field = settings.template.let { it.field(it.setField) }
+        if (field == null) { currentSet = null; return }
+        setRow.add(text("Set:", 15f, Ui.MUTED, bold = true), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(8) })
+        val choices = listOf<Int?>(null) + field.labels.indices
+        for (v in choices) {
+            val chip = text(settings.setName(v), 15f, bold = true).apply {
+                gravity = Gravity.CENTER
+                setPadding(dp(14), dp(8), dp(14), dp(8))
+                val on = v == currentSet
+                background = rounded(if (on) Ui.PRIMARY else Ui.CARD, dp(18).toFloat(), Ui.PRIMARY, dp(1.5f))
+                setTextColor(if (on) 0xFFFFFFFF.toInt() else Ui.PRIMARY)
+                setOnClickListener {
+                    currentSet = v
+                    key = store.storedKey(v).toMutableList()
+                    buildSetChips()
+                    buildRows()
+                }
+            }
+            setRow.add(chip, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(6) })
+        }
+    }
+
     private fun paintBubble(v: TextView, selected: Boolean) {
         v.background = rounded(if (selected) Ui.PRIMARY else Ui.CARD, dp(20).toFloat(), if (selected) Ui.PRIMARY else Ui.MUTED, dp(1.5f))
         v.setTextColor(if (selected) 0xFFFFFFFF.toInt() else Ui.MUTED)
@@ -78,7 +109,8 @@ class AnswerKeyActivity : Activity() {
 
     private fun updateStatus() {
         val n = key.count { it != null }
-        status.text = "$n of ${settings.questionCount} answers set" + if (n < settings.questionCount) " — questions without a key are not graded" else " ✓"
+        val which = if (settings.template.setField != null) "Set ${settings.setName(currentSet)}: " else ""
+        status.text = which + "$n of ${settings.questionCount} answers set" + if (n < settings.questionCount) " — questions without a key are not graded" else " ✓"
     }
 
     private fun pasteKey() {
@@ -101,7 +133,7 @@ class AnswerKeyActivity : Activity() {
                     .joinToString("")
                 val decoded = AnswerKeyCodec.decode(cleaned, settings.optionCount)
                 key = MutableList(settings.questionCount) { decoded.getOrNull(it) }
-                store.key = key
+                store.saveKey(currentSet, key)
                 buildRows()
             }
             .setNegativeButton("Cancel", null)
@@ -113,7 +145,7 @@ class AnswerKeyActivity : Activity() {
             .setMessage("Clear the whole answer key?")
             .setPositiveButton("Clear") { _, _ ->
                 key = MutableList(settings.questionCount) { null }
-                store.key = key
+                store.saveKey(currentSet, key)
                 buildRows()
             }
             .setNegativeButton("Cancel", null)

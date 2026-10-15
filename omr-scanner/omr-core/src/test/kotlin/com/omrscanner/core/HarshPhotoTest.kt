@@ -33,7 +33,7 @@ class HarshPhotoTest {
                 .format(p.coverage, p.perspective, p.curl, p.noise, p.blurRadius)
             val photo = SyntheticSheets.photograph(page, 8.0, p, rng)
             try {
-                val r = OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(100, 4))
+                val r = OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(questionCount = 100, optionCount = 4))
                 val wrong = answers.indices.filter { answers[it] != r.answers[it].marked.sorted() }
                 // A wrong reading is acceptable only if it is flagged for the user to check.
                 val silent = wrong.filter { !r.answers[it].needsReview }

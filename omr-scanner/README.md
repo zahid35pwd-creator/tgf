@@ -3,6 +3,25 @@
 Reads a photo or scan of a filled-in OMR answer sheet and gives the result: the roll number,
 each question's marked answer, and the score against your answer key (with optional negative marking).
 
+## Supported sheets
+
+Choose the type in **Exam settings**:
+
+| Sheet | Questions | Also reads |
+| --- | --- | --- |
+| This app's own sheet (print it from the app or `sheets/`) | up to 100, 4–5 options | roll number |
+| BCS preliminary (BPSC, pink) | 200, ক–ঘ | registration, set, BCS and centre codes |
+| SSC/HSC education board (pink) | 50, ক–ঘ | roll, set code, registration, subject code |
+
+On the pink board sheets the reader ignores the pink print, including the letters inside the bubbles, and only counts black or blue pen.
+Answer keys can be entered separately for each set (ক খ গ ঘ, or 0–9 for BCS); sheets with a set that has no key of its own use the "All sets" key.
+
+## Many sheets at once (PDF → Word)
+
+Tap **Check many sheets from a PDF**, or share a PDF to the app. Every page is checked, and you get a list sorted
+by roll / registration number. Save or share it as a **Word (.docx) report**. The report has a summary table (ID, set,
+score, right / wrong / blank) and each candidate's answers, with the correct option shown next to every mistake.
+
 ## Download
 
 Every push builds the app on GitHub Actions. On your phone, open the repository's **Releases** page,

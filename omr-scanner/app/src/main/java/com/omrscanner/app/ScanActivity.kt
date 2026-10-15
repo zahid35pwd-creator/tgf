@@ -19,7 +19,6 @@ import com.omrscanner.core.OmrException
 import com.omrscanner.core.OmrReader
 import com.omrscanner.core.OmrResult
 import com.omrscanner.core.QuestionReading
-import com.omrscanner.core.ReaderOptions
 import com.omrscanner.core.Verdict
 
 /**
@@ -49,7 +48,7 @@ class ScanActivity : Activity() {
     }
 
     private fun process(uri: Uri) {
-        val options = ReaderOptions(questionCount = settings.questionCount, optionCount = settings.optionCount)
+        val options = settings.readerOptions
         Thread {
             var result: OmrResult? = null
             var image: Bitmap? = null
@@ -74,7 +73,7 @@ class ScanActivity : Activity() {
     }
 
     private fun gradeOf(result: OmrResult): GradeResult? {
-        val key = store.key
+        val key = store.keyFor(result.set)
         if (key.all { it == null }) return null
         return Grader.grade(result.answers, key, settings.marking)
     }
@@ -98,7 +97,7 @@ class ScanActivity : Activity() {
         c.add(text(message, 16f), block(12))
         c.add(
             text(
-                "Make sure the picture shows a sheet printed from this app, with all 4 black corner squares visible, " +
+                "Make sure the picture shows a \"${settings.template.name}\" sheet (change the type in Exam settings), with all 4 black corner squares visible, " +
                     "the sheet filling most of the frame, and no heavy shadow.",
                 14f, Ui.MUTED,
             ),
@@ -157,7 +156,8 @@ class ScanActivity : Activity() {
             c.add(text("${grade.reviewCount} question(s) had faint or erased marks — check them on the image.", 13f, Ui.ORANGE), block(12))
         }
 
-        c.add(text("Roll number", 13f, Ui.MUTED), block(2))
+        c.add(fieldsText(result), block(8))
+        c.add(text("Roll / ID number", 13f, Ui.MUTED), block(2))
         val roll = EditText(this).apply {
             setText(result.roll)
             inputType = InputType.TYPE_CLASS_TEXT
@@ -165,14 +165,14 @@ class ScanActivity : Activity() {
             textSize = 20f
         }
         c.add(roll, block(4))
-        if (result.rollDigits.any { it == null }) c.add(text("Some roll digits were not filled clearly (shown as ?). You can correct them above.", 13f, Ui.ORANGE), block(8))
+        if (result.rollDigits.any { it == null }) c.add(text("Some digits were not filled clearly (shown as ?). You can correct them above.", 13f, Ui.ORANGE), block(8))
 
         val save = button("Save result") {}
         save.setOnClickListener {
             if (saved) return@setOnClickListener
             store.addResult(
                 SavedResult(
-                    time = System.currentTimeMillis(), exam = settings.examName, roll = roll.text.toString().trim(),
+                    time = System.currentTimeMillis(), exam = examLabel(result), roll = roll.text.toString().trim(),
                     score = grade.score, maxScore = grade.maxScore, correct = grade.correct, wrong = grade.wrong,
                     blank = grade.blank, multiple = grade.multiple, answers = answerString(result),
                 ),
@@ -190,7 +190,7 @@ class ScanActivity : Activity() {
         val c = card()
         c.add(text("No answer key yet", 20f, bold = true), block(6))
         c.add(text("Showing the detected answers only. Set the answer key to get scores — you can use this sheet as the key.", 14f, Ui.MUTED), block(8))
-        c.add(text("Roll number: ${result.roll}", 16f), block(12))
+        c.add(fieldsText(result), block(12))
         c.add(button("Use this sheet as the answer key", ButtonStyle.SECONDARY) { saveAsKey(result) }, block(0))
         page.add(c, block(12))
     }
@@ -200,6 +200,10 @@ class ScanActivity : Activity() {
         val filled = result.answers.count { it.status == MarkStatus.SINGLE }
         val problems = result.answers.count { it.status != MarkStatus.SINGLE }
         c.add(text("Answer key detected", 20f, bold = true), block(6))
+        if (settings.template.setField != null) {
+            c.add(text("Saved as the key for set: ${settings.setName(result.set)}" +
+                if (result.set == null) " (no set code was filled on this sheet)" else "", 15f, Ui.PRIMARY), block(4))
+        }
         c.add(text("$filled of ${result.answers.size} questions have one answer marked.", 15f), block(4))
         if (problems > 0) c.add(text("$problems question(s) are blank or have several marks; they will not be graded. You can fix them in the answer key screen.", 14f, Ui.ORANGE), block(8))
         c.add(button("Save as answer key") { saveAsKey(result) }, block(0))
@@ -207,7 +211,7 @@ class ScanActivity : Activity() {
     }
 
     private fun saveAsKey(result: OmrResult) {
-        store.key = result.answers.map { it.answer }
+        store.saveKey(if (keyMode) result.set else null, result.answers.map { it.answer })
         toast("Answer key saved")
         if (keyMode) {
             setResult(RESULT_OK)
@@ -217,6 +221,13 @@ class ScanActivity : Activity() {
             showResult(result, ResultImage.render(result, gradeOf(result)))
         }
     }
+
+    /** All the ID fields read from the sheet, e.g. "Roll: ১২৩৪৫৬   Set: খ". */
+    private fun fieldsText(result: OmrResult) =
+        text(result.fields.joinToString("   ") { "${it.name}: ${it.text}" }, 15f)
+
+    private fun examLabel(result: OmrResult) =
+        listOfNotNull(settings.examName.takeIf { it.isNotBlank() }, result.set?.let { "Set ${settings.setName(it)}" }).joinToString(" • ")
 
     private fun stat(label: String, n: Int, color: Int) = vertical().apply {
         gravity = Gravity.CENTER_HORIZONTAL

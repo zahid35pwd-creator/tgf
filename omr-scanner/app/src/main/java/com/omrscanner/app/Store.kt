@@ -3,11 +3,14 @@ package com.omrscanner.app
 import android.content.Context
 import com.omrscanner.core.AnswerKeyCodec
 import com.omrscanner.core.Marking
+import com.omrscanner.core.ReaderOptions
 import com.omrscanner.core.SheetSpec
+import com.omrscanner.core.SheetTemplate
 import org.json.JSONArray
 import org.json.JSONObject
 
 data class ExamSettings(
+    val templateId: String = SheetTemplate.OMR_SCANNER.id,
     val examName: String = "",
     val questionCount: Int = 50,
     val optionCount: Int = 4,
@@ -18,6 +21,11 @@ data class ExamSettings(
     val labels: List<String> get() = if (banglaLabels) SheetSpec.BANGLA_LABELS else SheetSpec.LATIN_LABELS
     val sheetSpec get() = SheetSpec(questionCount, optionCount, labels, examName = examName)
     val marking get() = Marking(perCorrect, perWrong)
+    val template get() = SheetTemplate.byId(templateId)
+    val readerOptions get() = ReaderOptions(template = template, questionCount = questionCount, optionCount = optionCount)
+
+    /** Name of the set code's value, e.g. "খ", or "All sets" for null. */
+    fun setName(set: Int?) = set?.let { template.field(template.setField)?.labels?.getOrNull(it) } ?: "All sets"
 
     fun label(option: Int) = labels[option]
 
@@ -59,16 +67,21 @@ class Store(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("omr", Context.MODE_PRIVATE)
 
     var settings: ExamSettings
-        get() = ExamSettings(
-            examName = prefs.getString("exam", "") ?: "",
-            questionCount = prefs.getInt("questions", 50),
-            optionCount = prefs.getInt("options", 4),
-            banglaLabels = prefs.getBoolean("bangla", false),
-            perCorrect = prefs.getFloat("perCorrect", 1f).toDouble(),
-            perWrong = prefs.getFloat("perWrong", 0f).toDouble(),
-        )
+        get() {
+            val t = SheetTemplate.byId(prefs.getString("template", null))
+            return ExamSettings(
+                templateId = t.id,
+                examName = prefs.getString("exam", "") ?: "",
+                questionCount = prefs.getInt("questions", 50).coerceIn(1, t.maxQuestions),
+                optionCount = prefs.getInt("options", 4).coerceIn(2, t.maxOptions),
+                banglaLabels = prefs.getBoolean("bangla", false),
+                perCorrect = prefs.getFloat("perCorrect", 1f).toDouble(),
+                perWrong = prefs.getFloat("perWrong", 0f).toDouble(),
+            )
+        }
         set(s) {
             prefs.edit()
+                .putString("template", s.templateId)
                 .putString("exam", s.examName)
                 .putInt("questions", s.questionCount)
                 .putInt("options", s.optionCount)
@@ -78,14 +91,34 @@ class Store(context: Context) {
                 .apply()
         }
 
-    /** The answer key sized to the current question count; null entries are not graded. */
-    var key: List<Int?>
-        get() {
-            val s = settings
-            val stored = AnswerKeyCodec.decode(prefs.getString("key", "") ?: "", s.optionCount)
-            return List(s.questionCount) { stored.getOrNull(it) }
-        }
-        set(value) { prefs.edit().putString("key", AnswerKeyCodec.encode(value)).apply() }
+    private fun keyPref(set: Int?) = "key:${settings.templateId}:${set ?: "all"}"
+
+    /**
+     * The answer key stored for [set] (null = the key used for all sets), sized to the current question
+     * count; null entries are not graded.
+     */
+    fun storedKey(set: Int?): List<Int?> {
+        val s = settings
+        var text = prefs.getString(keyPref(set), null)
+        // Keys saved before sheet types existed belong to this app's own sheet.
+        if (text == null && set == null && s.templateId == SheetTemplate.OMR_SCANNER.id) text = prefs.getString("key", null)
+        val stored = AnswerKeyCodec.decode(text ?: "", s.optionCount)
+        return List(s.questionCount) { stored.getOrNull(it) }
+    }
+
+    fun saveKey(set: Int?, key: List<Int?>) { prefs.edit().putString(keyPref(set), AnswerKeyCodec.encode(key)).apply() }
+
+    /** The key to grade a sheet with: its own set's key if one was entered, else the all-sets key. */
+    fun keyFor(set: Int?): List<Int?> {
+        if (set != null) storedKey(set).takeIf { k -> k.any { it != null } }?.let { return it }
+        return storedKey(null)
+    }
+
+    /** Set values that have their own key. */
+    fun setsWithKeys(): List<Int> {
+        val f = settings.template.let { it.field(it.setField) } ?: return emptyList()
+        return f.labels.indices.filter { v -> storedKey(v).any { it != null } }
+    }
 
     fun history(): List<SavedResult> {
         val arr = try { JSONArray(prefs.getString("history", "[]")) } catch (e: Exception) { JSONArray() }

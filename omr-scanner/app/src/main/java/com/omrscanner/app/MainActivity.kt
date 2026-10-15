@@ -10,13 +10,15 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
-import com.omrscanner.core.SheetLayout
+import com.omrscanner.core.SheetSpec
+import com.omrscanner.core.SheetTemplate
 
 class MainActivity : Activity() {
     private lateinit var store: Store
     private lateinit var examSummary: TextView
     private lateinit var keySummary: TextView
     private lateinit var historyButton: android.widget.Button
+    private lateinit var printButton: android.widget.Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,9 +41,12 @@ class MainActivity : Activity() {
         page.add(exam, block(16))
 
         page.add(button("Scan sheet with camera") { ImageSources.openCamera(this) })
-        page.add(button("Choose scanned picture") { ImageSources.openGallery(this) }, block(16))
+        page.add(button("Choose scanned picture") { ImageSources.openGallery(this) })
+        page.add(button("Check many sheets from a PDF") {
+            startActivity(Intent(this, BatchActivity::class.java))
+        }, block(16))
 
-        page.add(button("Print blank OMR sheet", ButtonStyle.SECONDARY) { SheetPrinter.print(this, store.settings.sheetSpec) })
+        printButton = page.add(button("Print blank OMR sheet", ButtonStyle.SECONDARY) { SheetPrinter.print(this, store.settings.sheetSpec) }) as android.widget.Button
         historyButton = page.add(button("Saved results", ButtonStyle.SECONDARY) {
             startActivity(Intent(this, HistoryActivity::class.java))
         }, block(20)) as android.widget.Button
@@ -50,7 +55,7 @@ class MainActivity : Activity() {
         tips.add(text("Tips for a good scan", 15f, bold = true), block(6))
         tips.add(
             text(
-                "• Print sheets from this app (any printer, A4).\n" +
+                "• Use this app's own sheet, a BCS preliminary sheet or an SSC/HSC board sheet (choose it in Exam settings).\n" +
                     "• Keep all 4 black corner squares in the picture.\n" +
                     "• Let the sheet fill most of the photo, lying flat.\n" +
                     "• Avoid strong shadows and glare.\n" +
@@ -71,9 +76,15 @@ class MainActivity : Activity() {
         val s = store.settings
         val name = s.examName.ifBlank { "Untitled exam" }
         val negative = if (s.perWrong > 0) ", −${fmt(s.perWrong)} per wrong" else ""
-        examSummary.text = "$name\n${s.questionCount} questions • options ${s.labelRange} • +${fmt(s.perCorrect)} per correct$negative"
-        val keyed = store.key.count { it != null }
-        keySummary.text = if (keyed == 0) "Answer key not set yet" else "Answer key: $keyed of ${s.questionCount} set"
+        examSummary.text = "$name\n${s.template.name}\n${s.questionCount} questions • options ${s.labelRange} • +${fmt(s.perCorrect)} per correct$negative"
+        val keyed = store.storedKey(null).count { it != null }
+        val sets = store.setsWithKeys()
+        keySummary.text = when {
+            sets.isNotEmpty() -> "Answer keys for set " + sets.joinToString(", ") { s.setName(it) } + if (keyed > 0) " and all other sets" else ""
+            keyed == 0 -> "Answer key not set yet"
+            else -> "Answer key: $keyed of ${s.questionCount} set"
+        }
+        printButton.visibility = if (s.template.printable) android.view.View.VISIBLE else android.view.View.GONE
         val saved = store.history().size
         historyButton.text = if (saved == 0) "Saved results" else "Saved results ($saved)"
     }
@@ -87,8 +98,14 @@ class MainActivity : Activity() {
             form.add(e, block(10))
             return e
         }
+        form.add(text("Sheet type", 13f, Ui.MUTED), block(2))
+        val types = RadioGroup(this).apply { orientation = LinearLayout.VERTICAL }
+        SheetTemplate.ALL.forEachIndexed { i, t -> types.addView(RadioButton(this).apply { text = t.name; id = 100 + i }) }
+        types.check(100 + SheetTemplate.ALL.indexOf(s.template))
+        form.add(types, block(10))
         val name = field("Exam name (printed on the sheet)", s.examName, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
-        val count = field("Number of questions (1–${SheetLayout.MAX_QUESTIONS})", s.questionCount.toString(), InputType.TYPE_CLASS_NUMBER)
+        val count = field("Number of questions (up to 100 / 200 BCS / 50 SSC)", s.questionCount.toString(), InputType.TYPE_CLASS_NUMBER)
+        types.setOnCheckedChangeListener { _, id -> count.setText(SheetTemplate.ALL[id - 100].maxQuestions.toString()) }
 
         form.add(text("Options per question", 13f, Ui.MUTED), block(2))
         val options = RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -118,19 +135,23 @@ class MainActivity : Activity() {
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val template = SheetTemplate.ALL[types.checkedRadioButtonId - 100]
                 val n = count.text.toString().toIntOrNull()
                 val pc = correct.text.toString().toDoubleOrNull()
                 val pw = wrong.text.toString().ifBlank { "0" }.toDoubleOrNull()
                 when {
-                    n == null || n !in 1..SheetLayout.MAX_QUESTIONS -> count.error = "Enter 1 to ${SheetLayout.MAX_QUESTIONS}"
+                    n == null || n !in 1..template.maxQuestions -> count.error = "Enter 1 to ${template.maxQuestions} for this sheet"
                     pc == null || pc <= 0 -> correct.error = "Enter a positive number"
                     pw == null || pw < 0 -> wrong.error = "Enter 0 or more"
                     else -> {
+                        val switched = template.id != s.templateId
                         store.settings = ExamSettings(
+                            templateId = template.id,
                             examName = name.text.toString().trim(),
                             questionCount = n,
-                            optionCount = options.checkedRadioButtonId,
-                            banglaLabels = letters.checkedRadioButtonId == 2,
+                            optionCount = options.checkedRadioButtonId.coerceAtMost(template.maxOptions),
+                            // Board sheets print ক খ গ ঘ; default to them when switching to one.
+                            banglaLabels = if (switched) template.optionLabels == SheetSpec.BANGLA_LABELS else letters.checkedRadioButtonId == 2,
                             perCorrect = pc,
                             perWrong = pw,
                         )

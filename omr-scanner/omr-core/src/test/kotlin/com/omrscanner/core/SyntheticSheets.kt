@@ -109,7 +109,7 @@ object SyntheticSheets {
     }
 
     /** A hand-filled bubble: an imperfect ellipse with pen strokes and a few gaps. */
-    private fun scribble(g: Graphics2D, c: Pt, r: Double, ink: Ink, rng: Random) {
+    fun scribble(g: Graphics2D, c: Pt, r: Double, ink: Ink, rng: Random) {
         val color = Color((ink.rgb shr 16) and 0xFF, (ink.rgb shr 8) and 0xFF, ink.rgb and 0xFF, ink.alpha)
         g.color = color
         val ox = c.x + rng.nextDouble(-0.3, 0.3)

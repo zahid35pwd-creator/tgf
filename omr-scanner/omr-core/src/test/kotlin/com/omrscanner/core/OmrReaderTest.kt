@@ -34,7 +34,7 @@ class OmrReaderTest {
         val sheet = randomSheet(rng, SheetSpec(questionCount = 100, optionCount = 4))
         val page = SyntheticSheets.render(sheet, 8.0, rng)
         outDir?.let { ImageIO.write(page, "png", File(it, "flat-scan.png")) }
-        val result = OmrReader.read(SyntheticSheets.toArgb(page), ReaderOptions(100, 4))
+        val result = OmrReader.read(SyntheticSheets.toArgb(page), ReaderOptions(questionCount = 100, optionCount = 4))
         assertReads(sheet, result, "flat")
         outDir?.let { saveRectified(result, File(it, "flat-rectified.png")) }
     }
@@ -57,7 +57,7 @@ class OmrReaderTest {
                 "persp ${"%.2f".format(params.perspective)}, curl ${"%.1f".format(params.curl)}, noise ${"%.1f".format(params.noise)}, blur ${params.blurRadius}, $ink)"
             val start = System.nanoTime()
             try {
-                val result = OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(n, opts))
+                val result = OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(questionCount = n, optionCount = opts))
                 assertReads(sheet, result, label)
                 println("$label ok in ${(System.nanoTime() - start) / 1_000_000} ms, threshold ${"%.2f".format(result.threshold)}")
                 if (trial < 4) outDir?.let { saveRectified(result, File(it, "photo-$trial-rectified.png")) }
@@ -75,7 +75,7 @@ class OmrReaderTest {
             val sheet = randomSheet(rng, SheetSpec(questionCount = 50))
             val page = SyntheticSheets.render(sheet, 8.0, rng)
             val photo = SyntheticSheets.photograph(page, 8.0, SyntheticSheets.PhotoParams(width = 1500, height = 2000, rotation = rotation), rng)
-            assertReads(sheet, OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(50, 4)), "rotation $rotation")
+            assertReads(sheet, OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(questionCount = 50, optionCount = 4)), "rotation $rotation")
         }
     }
 
@@ -84,7 +84,7 @@ class OmrReaderTest {
         val rng = Random(7)
         val sheet = FilledSheet(SheetSpec(questionCount = 40), List(40) { emptyList() }, List(6) { null })
         val photo = SyntheticSheets.photograph(SyntheticSheets.render(sheet, 8.0, rng), 8.0, SyntheticSheets.PhotoParams(width = 1500, height = 2000), rng)
-        val result = OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(40, 4))
+        val result = OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(questionCount = 40, optionCount = 4))
         assertTrue(result.answers.all { it.status == MarkStatus.BLANK })
         assertEquals("??????", result.roll)
     }
@@ -101,7 +101,7 @@ class OmrReaderTest {
         }
         val sheet = FilledSheet(SheetSpec(questionCount = 30), answers, List(6) { it }, erased = listOf(10 to 3, 11 to 0))
         val photo = SyntheticSheets.photograph(SyntheticSheets.render(sheet, 8.0, rng), 8.0, SyntheticSheets.PhotoParams(width = 1500, height = 2000, rotation = 4.0), rng)
-        val result = OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(30, 4))
+        val result = OmrReader.read(SyntheticSheets.toArgb(photo), ReaderOptions(questionCount = 30, optionCount = 4))
         assertReads(sheet, result, "multi")
         assertEquals(MarkStatus.MULTIPLE, result.answers[3].status)
         assertEquals(MarkStatus.MULTIPLE, result.answers[4].status)

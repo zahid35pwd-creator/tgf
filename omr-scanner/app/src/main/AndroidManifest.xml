@@ -36,6 +36,24 @@
             </intent-filter>
         </activity>
 
+        <!-- A PDF of many scanned sheets, from the home screen or shared from another app. -->
+        <activity
+            android:name=".BatchActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:exported="true"
+            android:label="Check PDF of sheets">
+            <intent-filter android:label="Check OMR sheets in PDF">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+            <intent-filter android:label="Check OMR sheets in PDF">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".AnswerKeyActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
