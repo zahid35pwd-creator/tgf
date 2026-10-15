@@ -60,6 +60,11 @@
             android:exported="false" />
 
         <activity
+            android:name=".SheetSetupActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:exported="false" />
+
+        <activity
             android:name=".HistoryActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:exported="false" />

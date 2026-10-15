@@ -55,7 +55,7 @@ class MainActivity : Activity() {
         tips.add(text("Tips for a good scan", 15f, bold = true), block(6))
         tips.add(
             text(
-                "• Use this app's own sheet, a BCS preliminary sheet or an SSC/HSC board sheet (choose it in Exam settings).\n" +
+                "• Use this app's own sheet, a BCS or SSC/HSC sheet, or teach it any other OMR sheet from a blank copy (Exam settings → Add another OMR sheet type).\n" +
                     "• Keep all 4 black corner squares in the picture.\n" +
                     "• Let the sheet fill most of the photo, lying flat.\n" +
                     "• Avoid strong shadows and glare.\n" +
@@ -99,13 +99,30 @@ class MainActivity : Activity() {
             return e
         }
         form.add(text("Sheet type", 13f, Ui.MUTED), block(2))
+        val all = store.templates()
         val types = RadioGroup(this).apply { orientation = LinearLayout.VERTICAL }
-        SheetTemplate.ALL.forEachIndexed { i, t -> types.addView(RadioButton(this).apply { text = t.name; id = 100 + i }) }
-        types.check(100 + SheetTemplate.ALL.indexOf(s.template))
-        form.add(types, block(10))
+        all.forEachIndexed { i, t -> types.addView(RadioButton(this).apply { text = if (t.custom) "${t.name} (learned)" else t.name; id = 100 + i }) }
+        types.check(100 + all.indexOfFirst { it.id == s.templateId }.coerceAtLeast(0))
+        form.add(types, block(4))
+        lateinit var dialog: AlertDialog
+        form.add(button("Add another OMR sheet type…", ButtonStyle.SECONDARY) {
+            dialog.dismiss()
+            startActivity(Intent(this, SheetSetupActivity::class.java))
+        }, block(4))
+        val delete = button("Delete this learned sheet type", ButtonStyle.DANGER) {
+            val t = all[types.checkedRadioButtonId - 100]
+            AlertDialog.Builder(this).setMessage("Delete \"${t.name}\" and its answer keys?")
+                .setPositiveButton("Delete") { _, _ -> store.deleteTemplate(t.id); dialog.dismiss(); refresh() }
+                .setNegativeButton("Cancel", null).show()
+        }
+        form.add(delete, block(10))
+        delete.visibility = if (s.template.custom) android.view.View.VISIBLE else android.view.View.GONE
         val name = field("Exam name (printed on the sheet)", s.examName, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
-        val count = field("Number of questions (up to 100 / 200 BCS / 50 SSC)", s.questionCount.toString(), InputType.TYPE_CLASS_NUMBER)
-        types.setOnCheckedChangeListener { _, id -> count.setText(SheetTemplate.ALL[id - 100].maxQuestions.toString()) }
+        val count = field("Number of questions", s.questionCount.toString(), InputType.TYPE_CLASS_NUMBER)
+        types.setOnCheckedChangeListener { _, id ->
+            count.setText(all[id - 100].maxQuestions.toString())
+            delete.visibility = if (all[id - 100].custom) android.view.View.VISIBLE else android.view.View.GONE
+        }
 
         form.add(text("Options per question", 13f, Ui.MUTED), block(2))
         val options = RadioGroup(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -127,7 +144,7 @@ class MainActivity : Activity() {
         val correct = field("Marks per correct answer", fmt(s.perCorrect), decimal)
         val wrong = field("Negative marks per wrong answer (0 for none)", fmt(s.perWrong), decimal)
 
-        val dialog = AlertDialog.Builder(this)
+        dialog = AlertDialog.Builder(this)
             .setTitle("Exam settings")
             .setView(android.widget.ScrollView(this).apply { addView(form) })
             .setPositiveButton("Save", null)
@@ -135,7 +152,7 @@ class MainActivity : Activity() {
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val template = SheetTemplate.ALL[types.checkedRadioButtonId - 100]
+                val template = all[types.checkedRadioButtonId - 100]
                 val n = count.text.toString().toIntOrNull()
                 val pc = correct.text.toString().toDoubleOrNull()
                 val pw = wrong.text.toString().ifBlank { "0" }.toDoubleOrNull()
@@ -146,7 +163,7 @@ class MainActivity : Activity() {
                     else -> {
                         val switched = template.id != s.templateId
                         store.settings = ExamSettings(
-                            templateId = template.id,
+                            template = template,
                             examName = name.text.toString().trim(),
                             questionCount = n,
                             optionCount = options.checkedRadioButtonId.coerceAtMost(template.maxOptions),

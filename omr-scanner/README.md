@@ -16,6 +16,17 @@ Choose the type in **Exam settings**:
 On the pink board sheets the reader ignores the pink print, including the letters inside the bubbles, and only counts black or blue pen.
 Answer keys can be entered separately for each set (ক খ গ ঘ, or 0–9 for BCS); sheets with a set that has no key of its own use the "All sets" key.
 
+### Any other OMR sheet
+
+In **Exam settings → Add another OMR sheet type**, give the app a **blank** copy of the sheet (PDF, scan or photo).
+It finds every bubble and works out the answer blocks, number fields (roll, registration…) and letter codes (set).
+On the review screen you can check them coloured on the sheet with question numbers, change a field's type, name the fields,
+mark which is the roll / ID and which is the set, and choose the question order and option letters. The saved sheet type then works
+everywhere: single scans, PDF batches and Word reports.
+
+Sheets with black corner squares are lined up by the squares. Sheets without them are lined up by the edges of the paper,
+so photograph them on a darker surface with the whole page in view (flat scans and PDF pages work as they are).
+
 ## Many sheets at once (PDF → Word)
 
 Tap **Check many sheets from a PDF**, or share a PDF to the app. Every page is checked, and you get a list sorted

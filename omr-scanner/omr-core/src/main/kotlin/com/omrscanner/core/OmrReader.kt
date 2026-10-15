@@ -93,26 +93,39 @@ object OmrReader {
         val t = options.template
         val work = ImageOps.downscale(image, options.workingMaxSide)
         val dark = ImageOps.darkness(ImageOps.luminance(work))
-        val ink = if (t.inkMode == InkMode.BLACK_INK) ImageOps.darkness(ImageOps.redChannel(work)) else dark
-        val candidates = MarkerFinder.find(ink)
-        if (candidates.size < 4) {
-            throw OmrException("Could not find the 4 black corner squares. Keep the whole sheet in view, flat and evenly lit.")
+        val ink = ImageOps.ink(work, t.inkMode, dark)
+        val sheetToImage = when (t.alignment) {
+            Alignment.MARKERS -> {
+                val candidates = MarkerFinder.find(ink)
+                if (candidates.size < 4) {
+                    throw OmrException("Could not find the 4 black corner squares. Keep the whole sheet in view, flat and evenly lit.")
+                }
+                locateSheet(t, dark, candidates)
+                    ?: throw OmrException("This does not look like a \"${t.name}\" sheet. Check the sheet type in settings and keep all 4 corner squares visible.")
+            }
+            Alignment.PAGE_EDGES -> {
+                val paper = ImageOps.paperQuad(ImageOps.luminance(work))
+                    ?: throw OmrException("Could not find the edges of the sheet. Photograph it on a darker background with all 4 corners in view.")
+                val rough = locateByPage(t, dark, paper)
+                    ?: throw OmrException("This does not look like a \"${t.name}\" sheet. Check the sheet type in settings and keep the whole page in view.")
+                snapToPrint(t, dark, rough)
+            }
         }
-        val sheetToImage = locateSheet(t, dark, candidates)
-            ?: throw OmrException("This does not look like a \"${t.name}\" sheet. Check the sheet type in settings and keep all 4 corner squares visible.")
         val s = Sampler(dark, sheetToImage)
         val inkSampler = Sampler(ink, sheetToImage)
+        val reach = 2.0
 
-        val answerCenters = ArrayList<List<Pt>>()
-        for (range in t.answerColumns) {
-            val qs = range.filter { it < options.questionCount }
+        val centers = arrayOfNulls<List<Pt>>(options.questionCount)
+        for (block in t.answerBlocks) {
+            val qs = block.filter { it < options.questionCount }
             if (qs.isEmpty()) continue
             val rows = qs.map { q -> t.questions[q].take(options.optionCount) }
-            answerCenters.addAll(refineBlock(s, BubbleBlock(rows, t.answerRadius)))
+            refineBlock(s, BubbleBlock(rows, t.answerRadius), reach).forEachIndexed { i, row -> centers[qs[i]] = row }
         }
+        val answerCenters = centers.mapIndexed { q, c -> c ?: t.questions[q].take(options.optionCount) }
         val fieldCenters = t.fields.map { f ->
             val block = f.block
-            val refined = refineBlock(s, block)
+            val refined = refineBlock(s, block, reach)
             // Back from rows (one per value) to columns.
             val iters = IntArray(f.columns.size)
             val cols = f.columns.map { ArrayList<Pt>() }
@@ -138,8 +151,8 @@ object OmrReader {
         val fields = readFields(t, fieldScores, fieldCenters)
 
         val scale = image.width.toDouble() / work.width
-        val corners = t.markerCenters.map { sheetToImage.map(it).let { p -> Pt(p.x * scale, p.y * scale) } }
-        val rectified = if (options.rectifiedPxPerMm > 0) ImageOps.rectify(work, sheetToImage, options.rectifiedPxPerMm) else null
+        val corners = (if (t.alignment == Alignment.MARKERS) t.markerCenters else t.pageCorners).map { sheetToImage.map(it).let { p -> Pt(p.x * scale, p.y * scale) } }
+        val rectified = if (options.rectifiedPxPerMm > 0) ImageOps.rectify(work, sheetToImage, options.rectifiedPxPerMm, t.pageWidth, t.pageHeight) else null
         return OmrResult(t, answers, fields, threshold, rectified, options.rectifiedPxPerMm, answerCenters, corners)
     }
 
@@ -160,7 +173,7 @@ object OmrReader {
         // The real markers usually span the largest quadrilateral; larger ones may come from clutter around it.
         quads.sortByDescending { it.first }
 
-        val fieldBlocks = t.fields.map { it.block }
+        val fieldBlocks = layoutBlocks(t)
         var best: Homography? = null
         var bestScore = Double.NEGATIVE_INFINITY
         for ((_, group) in quads.take(24)) {
@@ -170,7 +183,8 @@ object OmrReader {
                 val s = Sampler(dark, h)
                 if (!markerSizesFit(t, h, markers) || s.marginDarkness(t) > 0.25) continue
                 val marks = if (t.orientationMarks.isEmpty()) 0.0 else t.orientationMarks.sumOf { s.at(it.x, it.y).toDouble() } / t.orientationMarks.size
-                if (t.orientationMarks.isNotEmpty() && marks < 0.45) continue
+                // Built-in sheets have known solid marks; learned ones only use them to break ties.
+                if (t.orientationMarks.isNotEmpty() && marks < 0.45 && !t.custom) continue
                 val ring = s.layoutScore(fieldBlocks)
                 if (ring < 0.03) continue
                 val score = marks + 2 * ring
@@ -178,6 +192,76 @@ object OmrReader {
             }
         }
         return best
+    }
+
+    /** Sheets without corner squares: try the paper outline in each of its 4 rotations. */
+    private fun locateByPage(t: SheetTemplate, dark: FloatImage, paper: List<Pt>): Homography? {
+        val blocks = layoutBlocks(t)
+        var best: Homography? = null
+        var bestScore = 0.03
+        for (rot in 0 until 4) {
+            val h = Homography.fromPoints(t.pageCorners, List(4) { paper[(it + rot) % 4] }) ?: continue
+            val s = Sampler(dark, h)
+            // The outline is only roughly right, so let each block find its circles before scoring.
+            val ring = blocks.sumOf { b -> s.ringScoreNear(b, 4.0) } / blocks.size
+            val marks = if (t.orientationMarks.isEmpty()) 0.0 else t.orientationMarks.sumOf { s.at(it.x, it.y).toDouble() } / t.orientationMarks.size
+            val score = ring + 0.3 * marks
+            if (score > bestScore) { bestScore = score; best = h }
+        }
+        return best
+    }
+
+    /**
+     * The paper outline is only a rough guide. First shift the whole sheet so that all printed circles line up
+     * at once (blocks with different spacing only agree at the true position, so a regular grid can't slip
+     * by a row), then re-fit the perspective from each quarter of the page.
+     */
+    private fun snapToPrint(t: SheetTemplate, dark: FloatImage, h: Homography): Homography {
+        val s = Sampler(dark, h)
+        val blocks = layoutBlocks(t)
+        fun score(bs: List<BubbleBlock>, dx: Double, dy: Double): Double {
+            var sum = 0.0; var n = 0
+            for (b in bs) for (row in b.rows) for (p in row) { sum += s.ringContrast(p.x + dx, p.y + dy, b); n++ }
+            return if (n == 0) 0.0 else sum / n
+        }
+        fun search(bs: List<BubbleBlock>, around: Pt, range: Double, step: Double): Pt {
+            var best = around; var bestScore = Double.NEGATIVE_INFINITY
+            val k = (range / step).toInt()
+            for (iy in -k..k) for (ix in -k..k) {
+                val v = score(bs, around.x + ix * step, around.y + iy * step) - 0.002 * (abs(ix) + abs(iy))
+                if (v > bestScore) { bestScore = v; best = Pt(around.x + ix * step, around.y + iy * step) }
+            }
+            return best
+        }
+        var g = search(blocks, Pt(0.0, 0.0), 6.0, 0.5)
+        g = search(blocks, g, 0.5, 0.25)
+
+        // Per quarter of the page: its circles, their centre, and how far they still are from the print.
+        val all = t.questions.flatten().map { it to t.answerRadius } + t.fields.flatMap { f -> f.columns.flatten().map { it to f.radius } }
+        val cx = t.pageWidth / 2; val cy = t.pageHeight / 2
+        val src = ArrayList<Pt>(); val dst = ArrayList<Pt>()
+        for ((qx, qy) in listOf(false to false, true to false, true to true, false to true)) {
+            val pts = all.filter { (p, _) -> (p.x > cx) == qx && (p.y > cy) == qy }
+            if (pts.size < 12) continue
+            val step = max(1, pts.size / 60)
+            val sample = pts.filterIndexed { i, _ -> i % step == 0 }
+            val bs = sample.groupBy { it.second }.map { (r, ps) -> BubbleBlock(listOf(ps.map { it.first }), r) }
+            val off = search(bs, g, 2.0, 0.25)
+            val anchor = Pt(sample.sumOf { it.first.x } / sample.size, sample.sumOf { it.first.y } / sample.size)
+            src.add(anchor)
+            dst.add(h.map(Pt(anchor.x + off.x, anchor.y + off.y)))
+        }
+        if (src.size == 4) Homography.fromPoints(src, dst)?.let { return it }
+        // Too few circles in some quarter: just apply the whole-page shift.
+        val corners = t.pageCorners
+        return Homography.fromPoints(corners, corners.map { h.map(Pt(it.x + g.x, it.y + g.y)) }) ?: h
+    }
+
+    /** Blocks used to check that a candidate alignment really shows this sheet's printed circles. */
+    private fun layoutBlocks(t: SheetTemplate): List<BubbleBlock> {
+        val fields = t.fields.map { it.block }
+        val answers = t.answerBlocks.map { b -> BubbleBlock(b.filterIndexed { i, _ -> i % max(1, b.size / 8) == 0 }.map { t.questions[it] }, t.answerRadius) }
+        return fields + answers
     }
 
     /** Each blob must be about as large as a printed marker would appear under [h]. */
@@ -208,10 +292,10 @@ object OmrReader {
      * Paper is rarely perfectly flat, so after the corner-based mapping the block, then each row, is nudged
      * to where the printed circles actually are.
      */
-    private fun refineBlock(s: Sampler, b: BubbleBlock): List<List<Pt>> {
+    private fun refineBlock(s: Sampler, b: BubbleBlock, reach: Double = 2.0): List<List<Pt>> {
         val rows = b.rows
         val sample = rows.flatten().let { all -> all.filterIndexed { i, _ -> i % max(1, all.size / 48) == 0 } }
-        var block = bestOffset(s, sample, b, Pt(0.0, 0.0), 2.0, 0.5)
+        var block = bestOffset(s, sample, b, Pt(0.0, 0.0), reach, 0.5)
         block = bestOffset(s, sample, b, block, 0.5, 0.25)
 
         val offsets = rows.map { bestOffset(s, it, b, block, 1.0, 0.25) }
@@ -242,16 +326,17 @@ object OmrReader {
 
     /**
      * Digit fields often print their digits inside the bubbles in black (e.g. BCS), which looks like ink.
-     * Each digit's glyph is the same in every column, so its typical empty darkness (the median over
-     * columns) is subtracted, and each column takes the bubble that clearly stands out.
+     * Each digit's glyph is the same in every column, so its empty darkness (the lightest column) is
+     * subtracted, and each column takes the bubble that clearly stands out.
      */
     private fun readFields(t: SheetTemplate, scores: List<List<DoubleArray>>, centers: List<List<List<Pt>>>): List<FieldReading> {
         val baseline = HashMap<Pair<List<String>, Int>, Double>()
         for ((labels, group) in t.fields.indices.groupBy { t.fields[it].labels }) {
             for (v in labels.indices) {
                 val values = group.flatMap { i -> scores[i].filter { it.size > v }.map { it[v] } }
-                // A per-digit baseline needs enough columns that most of them are unmarked.
-                if (values.size >= 3) baseline[labels to v] = median(values)
+                // The lightest column shows the printed digit unmarked (unless every column has the same digit,
+                // e.g. roll 666666, which a median would also get wrong whenever most columns share a digit).
+                if (values.size >= 3) baseline[labels to v] = values.min()
             }
         }
         return t.fields.mapIndexed { i, f ->
@@ -358,6 +443,24 @@ internal class Sampler(private val dark: FloatImage, h: Homography) {
             n++
         }
         return if (n == 0) 0.0 else (ring - gap) / n
+    }
+
+    /** Best average ring contrast of [b]'s circles when the whole block may be shifted by up to [reach] mm. */
+    fun ringScoreNear(b: BubbleBlock, reach: Double): Double {
+        val pts = b.rows.flatten()
+        var best = Double.NEGATIVE_INFINITY
+        var dy = -reach
+        while (dy <= reach + 1e-9) {
+            var dx = -reach
+            while (dx <= reach + 1e-9) {
+                var sum = 0.0
+                for (p in pts) sum += ringContrast(p.x + dx, p.y + dy, b)
+                best = max(best, sum / pts.size)
+                dx += 0.5
+            }
+            dy += 0.5
+        }
+        return best
     }
 
     /** Mean darkness inside the bubble, keeping clear of the printed outline. */

@@ -132,5 +132,8 @@ internal class IntArrayList {
     }
 
     operator fun get(i: Int) = data[i]
+    fun pop(): Int = data[--size]
+    fun clear() { size = 0 }
+    fun toArray(): IntArray = data.copyOf(size)
     operator fun set(i: Int, v: Int) { data[i] = v }
 }

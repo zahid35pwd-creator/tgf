@@ -12,7 +12,22 @@ enum class InkMode {
      * The red channel: pink or red print, including letters inside the bubbles, almost vanishes while
      * black and blue pen stay dark. Right for Bangladeshi exam sheets printed in pink.
      */
-    BLACK_INK,
+    RED,
+
+    /** The green channel, for sheets printed in green. */
+    GREEN,
+
+    /** The blue channel, for sheets printed in blue (black pen works best on these). */
+    BLUE,
+}
+
+/** How the sheet is lined up in a photo. */
+enum class Alignment {
+    /** Four solid black squares near the corners (most OMR sheets). */
+    MARKERS,
+
+    /** No corner squares: the edges of the paper are used, so the sheet must stand out from the background. */
+    PAGE_EDGES,
 }
 
 /** A group of bubbles aligned together; [rows] share a line, and rows are stacked down the page. */
@@ -48,8 +63,8 @@ class SheetTemplate(
     /** Question -> option centres. */
     val questions: List<List<Pt>>,
     val answerRadius: Double,
-    /** How questions are grouped into printed columns, as [first, last) index ranges. */
-    val answerColumns: List<IntRange>,
+    /** Question indices printed together in one block (aligned as a unit), e.g. one column of a sheet. */
+    val answerBlocks: List<List<Int>>,
     val fields: List<DigitField>,
     /** Name of the field holding the candidate's roll or ID number. */
     val idField: String?,
@@ -62,11 +77,19 @@ class SheetTemplate(
     val printable: Boolean,
     /** Default letters for the options. */
     val optionLabels: List<String>,
+    val alignment: Alignment = Alignment.MARKERS,
+    val pageWidth: Double = 210.0,
+    val pageHeight: Double = 297.0,
+    /** True for sheet types the user taught the app from a blank copy. */
+    val custom: Boolean = false,
 ) {
     val maxQuestions get() = questions.size
     val maxOptions get() = questions.maxOf { it.size }
 
     fun field(name: String?) = fields.firstOrNull { it.name == name }
+
+    /** Page corners clockwise from top-left: the "markers" when [alignment] is [Alignment.PAGE_EDGES]. */
+    val pageCorners get() = listOf(Pt(0.0, 0.0), Pt(pageWidth, 0.0), Pt(pageWidth, pageHeight), Pt(0.0, pageHeight))
 
     companion object {
         val DIGITS = List(10) { it.toString() }
@@ -80,7 +103,7 @@ class SheetTemplate(
                 markerSize = MARKER_SIZE,
                 questions = List(MAX_QUESTIONS) { q -> List(MAX_OPTIONS) { answerBubble(q, it) } },
                 answerRadius = ANSWER_RADIUS,
-                answerColumns = (0 until MAX_QUESTIONS step QUESTIONS_PER_COLUMN).map { it until it + QUESTIONS_PER_COLUMN },
+                answerBlocks = (0 until MAX_QUESTIONS step QUESTIONS_PER_COLUMN).map { (it until it + QUESTIONS_PER_COLUMN).toList() },
                 fields = listOf(DigitField("Roll", List(ROLL_DIGITS) { p -> List(10) { rollBubble(p, it) } }, ROLL_RADIUS, DIGITS)),
                 idField = "Roll",
                 setField = null,
@@ -105,7 +128,7 @@ class SheetTemplate(
                 markerSize = 7.1,
                 questions = questions,
                 answerRadius = 1.6,
-                answerColumns = (0 until 200 step 40).map { it until it + 40 },
+                answerBlocks = (0 until 200 step 40).map { (it until it + 40).toList() },
                 fields = listOf(
                     field("Registration", List(8) { 51.82 + it * 6.343 }),
                     field("Set", listOf(107.18)),
@@ -115,7 +138,7 @@ class SheetTemplate(
                 idField = "Registration",
                 setField = "Set",
                 orientationMarks = emptyList(),
-                inkMode = InkMode.BLACK_INK,
+                inkMode = InkMode.RED,
                 printable = false,
                 optionLabels = SheetSpec.BANGLA_LABELS,
             )
@@ -139,7 +162,7 @@ class SheetTemplate(
                 markerSize = 4.83,
                 questions = questions,
                 answerRadius = 1.7,
-                answerColumns = listOf(0 until 25, 25 until 50),
+                answerBlocks = listOf((0 until 25).toList(), (25 until 50).toList()),
                 fields = listOf(
                     DigitField("Roll", cols(listOf(108.33, 113.83, 119.33, 124.84, 130.34, 135.85), rollY), 1.7, BANGLA_DIGITS),
                     DigitField("Set", listOf(rollY.take(4).map { Pt(156.44, it) }), 1.7, SheetSpec.BANGLA_LABELS.take(4)),
@@ -150,7 +173,7 @@ class SheetTemplate(
                 setField = "Set",
                 // The timing strip down the left edge.
                 orientationMarks = List(9) { Pt(15.83, 37.59 + it * 6 * 4.5057) },
-                inkMode = InkMode.BLACK_INK,
+                inkMode = InkMode.RED,
                 printable = false,
                 optionLabels = SheetSpec.BANGLA_LABELS,
             )

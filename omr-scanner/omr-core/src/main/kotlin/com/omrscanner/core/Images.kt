@@ -76,11 +76,105 @@ internal object ImageOps {
         return out
     }
 
-    /** The red channel: pink, magenta and red print look almost white, black and blue ink stay dark. */
-    fun redChannel(src: ArgbImage): FloatImage {
+    /** One colour channel (0 = red, 1 = green, 2 = blue): print in that colour looks almost white. */
+    fun channel(src: ArgbImage, index: Int): FloatImage {
+        val shift = 16 - 8 * index
         val out = FloatImage(src.width, src.height)
-        for (i in src.pixels.indices) out.data[i] = ((src.pixels[i] shr 16) and 0xFF).toFloat()
+        for (i in src.pixels.indices) out.data[i] = ((src.pixels[i] shr shift) and 0xFF).toFloat()
         return out
+    }
+
+    /** The image the reader judges fills on, for a sheet printed in the colour [mode] ignores. */
+    fun ink(src: ArgbImage, mode: InkMode, luminanceDarkness: FloatImage): FloatImage = when (mode) {
+        InkMode.LUMINANCE -> luminanceDarkness
+        InkMode.RED -> darkness(channel(src, 0))
+        InkMode.GREEN -> darkness(channel(src, 1))
+        InkMode.BLUE -> darkness(channel(src, 2))
+    }
+
+    /** Darkness of the lightest channel: only black (or very dark) marks show up. */
+    fun blackOnly(src: ArgbImage): FloatImage {
+        val out = FloatImage(src.width, src.height)
+        for (i in src.pixels.indices) {
+            val p = src.pixels[i]
+            out.data[i] = max(max((p shr 16) and 0xFF, (p shr 8) and 0xFF), p and 0xFF).toFloat()
+        }
+        return darkness(out)
+    }
+
+    /**
+     * The four corners of the sheet of paper (clockwise on screen, from any corner), for sheets without
+     * corner squares. The paper must be brighter than what is around it; if it fills the picture (a flat
+     * scan or a PDF page), the picture's own corners are returned.
+     */
+    fun paperQuad(gray: FloatImage): List<Pt>? {
+        // Work small: the outline only needs to be roughly right, alignment is refined later.
+        val f = max(1, max(gray.width, gray.height) / 500)
+        val w = gray.width / f
+        val h = gray.height / f
+        val small = FloatArray(w * h)
+        for (y in 0 until h) for (x in 0 until w) {
+            var s = 0f
+            for (dy in 0 until f) for (dx in 0 until f) s += gray[x * f + dx, y * f + dy]
+            small[y * w + x] = s / (f * f)
+        }
+        // Otsu split between paper and background.
+        val hist = IntArray(256)
+        for (v in small) hist[v.toInt().coerceIn(0, 255)]++
+        var sumAll = 0.0
+        for (i in 0 until 256) sumAll += i * hist[i].toDouble()
+        var wB = 0.0; var sumB = 0.0; var best = -1.0; var cut = 128
+        for (i in 0 until 256) {
+            wB += hist[i]; if (wB == 0.0) continue
+            val wF = small.size - wB; if (wF == 0.0) break
+            sumB += i * hist[i].toDouble()
+            val mB = sumB / wB; val mF = (sumAll - sumB) / wF
+            val between = wB * wF * (mB - mF) * (mB - mF)
+            if (between > best) { best = between; cut = i }
+        }
+        val bright = BooleanArray(small.size) { small[it] > cut }
+        val fullFrame = listOf(Pt(0.0, 0.0), Pt(gray.width - 1.0, 0.0), Pt(gray.width - 1.0, gray.height - 1.0), Pt(0.0, gray.height - 1.0))
+        // A uniform picture, or paper reaching every edge: the page fills the frame.
+        if (best < 1e-6 || bright.count { it } > 0.97 * small.size) return fullFrame
+        // Largest bright region.
+        val label = IntArray(small.size) { -1 }
+        var bestLabel = -1; var bestSize = 0
+        val stack = IntArrayList()
+        var next = 0
+        for (i in small.indices) {
+            if (!bright[i] || label[i] >= 0) continue
+            var size = 0
+            stack.add(i); label[i] = next
+            while (stack.size > 0) {
+                val p = stack.pop(); size++
+                val x = p % w; val y = p / w
+                if (x > 0 && bright[p - 1] && label[p - 1] < 0) { label[p - 1] = next; stack.add(p - 1) }
+                if (x < w - 1 && bright[p + 1] && label[p + 1] < 0) { label[p + 1] = next; stack.add(p + 1) }
+                if (y > 0 && bright[p - w] && label[p - w] < 0) { label[p - w] = next; stack.add(p - w) }
+                if (y < h - 1 && bright[p + w] && label[p + w] < 0) { label[p + w] = next; stack.add(p + w) }
+            }
+            if (size > bestSize) { bestSize = size; bestLabel = next }
+            next++
+        }
+        if (bestSize < 0.12 * small.size) return null
+        if (bestSize > 0.85 * small.size && touchesAllEdges(BooleanArray(small.size) { label[it] == bestLabel }, w, h)) return fullFrame
+        val pts = ArrayList<Pt>()
+        for (y in 0 until h) {
+            var l = -1; var r = -1
+            for (x in 0 until w) if (label[y * w + x] == bestLabel) { if (l < 0) l = x; r = x }
+            if (l >= 0) { pts.add(Pt(l * f.toDouble(), (y + 0.5) * f)); pts.add(Pt((r + 1) * f.toDouble(), (y + 0.5) * f)) }
+        }
+        val hull = Polygons.convexHull(pts)
+        val quad = Polygons.quadOnHull(hull) ?: return null
+        if (Polygons.area(quad) < 0.7 * Polygons.area(hull)) return null
+        val cx = quad.sumOf { it.x } / 4
+        val cy = quad.sumOf { it.y } / 4
+        return quad.sortedBy { kotlin.math.atan2(it.y - cy, it.x - cx) }
+    }
+
+    private fun touchesAllEdges(b: BooleanArray, w: Int, h: Int): Boolean {
+        fun any(range: IntProgression) = range.any { b[it] }
+        return any(0 until w) && any((h - 1) * w until h * w) && any(0 until h * w step w) && any(w - 1 until h * w step w)
     }
 
     /**
@@ -165,9 +259,12 @@ internal object ImageOps {
     }
 
     /** Resamples the sheet area of [src] into an upright, flat image at [pxPerMm]. */
-    fun rectify(src: ArgbImage, sheetToImage: Homography, pxPerMm: Double): ArgbImage {
-        val w = (SheetLayout.PAGE_WIDTH * pxPerMm).roundToInt()
-        val h = (SheetLayout.PAGE_HEIGHT * pxPerMm).roundToInt()
+    fun rectify(
+        src: ArgbImage, sheetToImage: Homography, pxPerMm: Double,
+        pageWidth: Double = SheetLayout.PAGE_WIDTH, pageHeight: Double = SheetLayout.PAGE_HEIGHT,
+    ): ArgbImage {
+        val w = (pageWidth * pxPerMm).roundToInt()
+        val h = (pageHeight * pxPerMm).roundToInt()
         val out = IntArray(w * h)
         val m = sheetToImage.m
         for (v in 0 until h) {

@@ -6,11 +6,12 @@ import com.omrscanner.core.Marking
 import com.omrscanner.core.ReaderOptions
 import com.omrscanner.core.SheetSpec
 import com.omrscanner.core.SheetTemplate
+import com.omrscanner.core.TemplateCodec
 import org.json.JSONArray
 import org.json.JSONObject
 
 data class ExamSettings(
-    val templateId: String = SheetTemplate.OMR_SCANNER.id,
+    val template: SheetTemplate = SheetTemplate.OMR_SCANNER,
     val examName: String = "",
     val questionCount: Int = 50,
     val optionCount: Int = 4,
@@ -21,7 +22,7 @@ data class ExamSettings(
     val labels: List<String> get() = if (banglaLabels) SheetSpec.BANGLA_LABELS else SheetSpec.LATIN_LABELS
     val sheetSpec get() = SheetSpec(questionCount, optionCount, labels, examName = examName)
     val marking get() = Marking(perCorrect, perWrong)
-    val template get() = SheetTemplate.byId(templateId)
+    val templateId get() = template.id
     val readerOptions get() = ReaderOptions(template = template, questionCount = questionCount, optionCount = optionCount)
 
     /** Name of the set code's value, e.g. "খ", or "All sets" for null. */
@@ -68,9 +69,9 @@ class Store(context: Context) {
 
     var settings: ExamSettings
         get() {
-            val t = SheetTemplate.byId(prefs.getString("template", null))
+            val t = template(prefs.getString("template", null))
             return ExamSettings(
-                templateId = t.id,
+                template = t,
                 examName = prefs.getString("exam", "") ?: "",
                 questionCount = prefs.getInt("questions", 50).coerceIn(1, t.maxQuestions),
                 optionCount = prefs.getInt("options", 4).coerceIn(2, t.maxOptions),
@@ -90,6 +91,30 @@ class Store(context: Context) {
                 .putFloat("perWrong", s.perWrong.toFloat())
                 .apply()
         }
+
+    /** Built-in sheet types followed by the ones learned from blank sheets. */
+    fun templates(): List<SheetTemplate> = SheetTemplate.ALL + customTemplates()
+
+    fun template(id: String?): SheetTemplate = templates().firstOrNull { it.id == id } ?: SheetTemplate.OMR_SCANNER
+
+    private fun customTemplates(): List<SheetTemplate> {
+        val arr = try { JSONArray(prefs.getString("templates", "[]")) } catch (e: Exception) { JSONArray() }
+        return (0 until arr.length()).mapNotNull { i -> try { TemplateCodec.decode(arr.getString(i)) } catch (e: Exception) { null } }
+    }
+
+    fun addTemplate(t: SheetTemplate) {
+        val arr = JSONArray()
+        for (old in customTemplates()) if (old.id != t.id) arr.put(TemplateCodec.encode(old))
+        arr.put(TemplateCodec.encode(t))
+        prefs.edit().putString("templates", arr.toString()).apply()
+    }
+
+    fun deleteTemplate(id: String) {
+        val arr = JSONArray()
+        for (old in customTemplates()) if (old.id != id) arr.put(TemplateCodec.encode(old))
+        prefs.edit().putString("templates", arr.toString()).apply()
+        if (prefs.getString("template", null) == id) prefs.edit().remove("template").apply()
+    }
 
     private fun keyPref(set: Int?) = "key:${settings.templateId}:${set ?: "all"}"
 
