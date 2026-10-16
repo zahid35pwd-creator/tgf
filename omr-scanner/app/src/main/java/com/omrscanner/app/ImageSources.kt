@@ -84,8 +84,12 @@ object ImageSources {
         bmp.getPixels(pixels, 0, bmp.width, 0, 0, bmp.width, bmp.height)
         val image = ArgbImage(bmp.width, bmp.height, pixels)
         bmp.recycle()
-        // Cameras store pictures as the sensor sees them and record the turn needed in the EXIF data.
-        return image.rotated(exifQuarterTurns(context, uri))
+        // Cameras store pictures as the sensor sees them and record the turn in the EXIF data,
+        // so only pictures we captured ourselves (our FilesProvider) are rotated by EXIF here.
+        // Gallery pickers deliver pixels already upright but often keep the EXIF tag — rotating
+        // again would put the sheet sideways.
+        val quarterTurns = if (uri.authority == FilesProvider.AUTHORITY) exifQuarterTurns(context, uri) else 0
+        return image.rotated(quarterTurns)
     }
 
     /** Clockwise quarter turns the picture's EXIF data asks for (0 if none or unreadable). */

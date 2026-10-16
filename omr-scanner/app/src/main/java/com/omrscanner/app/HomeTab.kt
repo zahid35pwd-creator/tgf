@@ -28,7 +28,7 @@ class HomeTab(private val a: MainActivity) {
         hello.add(text(greeting, TextStyle.CAPTION, Ui.MUTED), wrap())
         hello.add(text("OMR Scanner", TextStyle.DISPLAY.sp - 4, Ui.TEXT, true).apply { letterSpacing = -0.02f }, wrap())
         header.add(hello, weighted())
-        header.add(iconBadge(Icon.SCAN, Ui.ON_PRIMARY, Ui.PRIMARY, 48, 24))
+        header.add(iconBadge(Icon.SCAN, Ui.ON_PRIMARY, Ui.PRIMARY, 48, 24), LinearLayout.LayoutParams(dp(48), dp(48)))
         column.add(header, block(0))
 
         column.add(examCard(s), block(16))

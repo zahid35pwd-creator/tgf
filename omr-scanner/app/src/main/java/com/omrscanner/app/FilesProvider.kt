@@ -54,7 +54,7 @@ class FilesProvider : ContentProvider() {
     override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?) = 0
 
     companion object {
-        private const val AUTHORITY = "com.omrscanner.app.files"
+        const val AUTHORITY = "com.omrscanner.app.files"
 
         fun sharedDir(context: Context) = File(context.cacheDir, "shared").apply { mkdirs() }
 
