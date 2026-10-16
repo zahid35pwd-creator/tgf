@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.pdf.PdfRenderer
 import android.media.ExifInterface
 import android.net.Uri
 import android.provider.MediaStore
@@ -18,6 +19,7 @@ import kotlin.math.max
 object ImageSources {
     const val REQUEST_CAMERA = 101
     const val REQUEST_GALLERY = 102
+    const val REQUEST_PDF = 103
 
     private fun captureFile(context: Context) = File(FilesProvider.sharedDir(context), "capture.jpg")
 
@@ -49,12 +51,51 @@ object ImageSources {
         }
     }
 
+    fun openPdf(activity: Activity) {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            type = "application/pdf"
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        try {
+            activity.startActivityForResult(intent, REQUEST_PDF)
+        } catch (e: ActivityNotFoundException) {
+            activity.toast("No file picker found.")
+        }
+    }
+
+    fun isPdf(context: Context, uri: Uri) =
+        context.contentResolver.getType(uri) == "application/pdf" || uri.lastPathSegment?.lowercase()?.endsWith(".pdf") == true
+
+    /** Number of pages in a PDF (0 if it can't be opened). */
+    fun pdfPageCount(context: Context, uri: Uri): Int = try {
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { fd -> PdfRenderer(fd).use { it.pageCount } } ?: 0
+    } catch (e: Exception) {
+        0
+    }
+
+    /** Renders one PDF page at about 2400 px on the long side. */
+    fun renderPdfPage(context: Context, uri: Uri, index: Int = 0): ArgbImage? {
+        val fd = context.contentResolver.openFileDescriptor(uri, "r") ?: return null
+        return PdfRenderer(fd).use { pdf ->
+            if (pdf.pageCount == 0) return null
+            pdf.openPage(index.coerceIn(0, pdf.pageCount - 1)).use { p ->
+                val scale = 2400.0 / max(p.width, p.height)
+                val bmp = Bitmap.createBitmap((p.width * scale).toInt(), (p.height * scale).toInt(), Bitmap.Config.ARGB_8888)
+                bmp.eraseColor(0xFFFFFFFF.toInt())
+                p.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
+                val px = IntArray(bmp.width * bmp.height)
+                bmp.getPixels(px, 0, bmp.width, 0, 0, bmp.width, bmp.height)
+                ArgbImage(bmp.width, bmp.height, px).also { bmp.recycle() }
+            }
+        }
+    }
+
     /** The picture chosen in an onActivityResult call, or null if the user cancelled. */
     fun resultUri(context: Context, requestCode: Int, resultCode: Int, data: Intent?): Uri? {
         if (resultCode != Activity.RESULT_OK) return null
         return when (requestCode) {
             REQUEST_CAMERA -> captureFile(context).takeIf { it.length() > 0 }?.let { FilesProvider.uriFor(it) }
-            REQUEST_GALLERY -> data?.data
+            REQUEST_GALLERY, REQUEST_PDF -> data?.data
             else -> null
         }
     }
@@ -68,6 +109,7 @@ object ImageSources {
 
     /** Decodes [uri] at a size suited to the reader (longer side roughly 1800–3600 px). */
     fun load(context: Context, uri: Uri): ArgbImage? {
+        if (isPdf(context, uri)) return renderPdfPage(context, uri, 0)
         val resolver = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         val stream = resolver.openInputStream(uri) ?: return null

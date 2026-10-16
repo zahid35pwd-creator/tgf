@@ -22,26 +22,44 @@ class KeyTab(private val a: MainActivity) {
 
     fun build(): View = with(a) {
         if (settings.template.let { it.field(it.setField) } == null) keySet = null
-        val more = iconButton(Icon.MORE) { menu() }
-        val (root, column) = tabPage("Answer key", more)
+        val (root, column) = tabPage("Answer key", iconButton(Icon.MORE) { appMenu() })
+        column.add(HomeTab.selectedSheet(this), block(14))
+        if (!store.hasTemplate) {
+            column.add(emptyState(Icon.KEY, "Select an OMR sheet first", "The answer key belongs to an OMR sheet. Choose the sheet on the Home tab, then come back here.",
+                "Go to Home") { show(MainActivity.Tab.HOME) }, block(0))
+            return root
+        }
 
-        setChips()?.let { column.add(it, block(12)) }
+        setChips()?.let { column.add(it, block(14)) }
 
         val top = card(18)
-        val line = horizontal()
         status = text("", TextStyle.HEADING)
-        line.add(status, weighted())
-        top.add(line, block(10))
+        top.add(status, block(10))
         bar = progressBar(settings.questionCount, 0)
         top.add(bar, block(12))
-        top.add(text("Tap the right option for each question. Questions without a key are not graded.", TextStyle.CAPTION, Ui.MUTED), block(14))
-        val buttons = horizontal()
-        buttons.add(button("Scan key sheet", ButtonStyle.PRIMARY, Icon.CAMERA) { scanKey(true) }, weighted().apply { marginEnd = dp(10) })
-        buttons.add(button("Picture", ButtonStyle.SECONDARY, Icon.GALLERY) { scanKey(false) }, weighted())
-        top.add(buttons, block(0))
-        column.add(top, block(16))
+        top.add(text("Scan a sheet filled in with the right answers, or tap them below. Questions without a key are not graded.", TextStyle.CAPTION, Ui.MUTED), block(14))
+        top.add(button("Scan key with camera", ButtonStyle.PRIMARY, Icon.CAMERA) { scanKey(true) }, block(10))
+        val more = horizontal()
+        more.add(button("Photo", ButtonStyle.SECONDARY, Icon.GALLERY) { scanKey(false) }, weighted().apply { marginEnd = dp(8) })
+        more.add(button("PDF", ButtonStyle.SECONDARY, Icon.PDF) { scanKeyPdf() }, weighted().apply { marginEnd = dp(8) })
+        more.add(button("Type", ButtonStyle.SECONDARY, Icon.EDIT) { paste() }, weighted())
+        top.add(more, block(0))
+        column.add(top, block(12))
 
-        column.add(sectionHeader("Questions"), block(4))
+        // Marking used when grading against this key.
+        val scheme = horizontal().apply { setPadding(dp(14), dp(12), dp(14), dp(12)); background = rounded(Ui.CARD, dp(14).toFloat(), Ui.DIVIDER, dp(1)) }
+        scheme.add(text("Marking", 14f, Ui.MUTED, true), weighted())
+        scheme.add(chip("Correct +${fmt(settings.perCorrect)}", Ui.GREEN, Ui.GREEN_BG), wrap().apply { marginEnd = dp(6) })
+        scheme.add(chip("Wrong −${fmt(settings.perWrong)}", Ui.RED, Ui.RED_BG), wrap())
+        column.add(scheme, block(18))
+
+        val header = horizontal()
+        header.add(sectionHeader("Questions"), weighted())
+        header.add(text("Clear", 13.5f, Ui.RED, true).apply {
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+            setOnClickListener { clear() }
+        }, wrap())
+        column.add(header, block(4))
         val grid = card(10)
         for (q in 0 until settings.questionCount) grid.add(questionRow(q), block(0))
         column.add(grid, block(0))
@@ -51,6 +69,8 @@ class KeyTab(private val a: MainActivity) {
 
     private fun setChips(): View? = with(a) {
         val field = settings.template.let { it.field(it.setField) } ?: return null
+        val box = vertical()
+        box.add(text("Question set — enter a separate key for each set, or one key for all", 13f, Ui.MUTED).apply { setPadding(dp(4), 0, 0, dp(8)) }, wrap())
         val row = horizontal()
         val choices = listOf<Int?>(null) + field.labels.indices
         val withKeys = store.setsWithKeys()
@@ -58,7 +78,8 @@ class KeyTab(private val a: MainActivity) {
             val label = if (v == null) "All sets" else "Set ${settings.setName(v)}" + if (v in withKeys) " ✓" else ""
             row.add(choiceChip(label, v == keySet) { keySet = v; refresh() }, wrap().apply { marginEnd = dp(8) })
         }
-        android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(row) }
+        box.add(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(row) }, block(0))
+        box
     }
 
     private fun questionRow(q: Int): View = with(a) {
@@ -93,24 +114,18 @@ class KeyTab(private val a: MainActivity) {
 
     private fun updateStatus() {
         val n = key.count { it != null }
-        val which = if (settings.template.setField != null) "${settings.setName(a.keySet)} · " else ""
+        val which = if (settings.template.setField != null) "${if (a.keySet == null) "All sets" else "Set " + settings.setName(a.keySet)} · " else ""
         status.text = "$which$n of ${settings.questionCount} set"
         bar.progress = n
         bar.progressTintList = android.content.res.ColorStateList.valueOf(if (n == settings.questionCount) Ui.GREEN else Ui.PRIMARY)
     }
 
-    private fun menu() = a.bottomSheet("Answer key") { col, d ->
-        col.add(a.listRow(Icon.EDIT, "Type or paste", "One letter per question, e.g. ABDCA…") { d.dismiss(); paste() }, a.block(0))
-        col.add(a.listRow(Icon.TRASH, "Clear this key", null, Ui.RED, Ui.RED_BG) {
-            d.dismiss()
-            a.confirm("Clear the answer key?", "All ${settings.questionCount} answers of this key will be removed.", "Clear", danger = true) {
-                val old = key.toList()
-                key = MutableList(settings.questionCount) { null }
-                a.store.saveKey(a.keySet, key)
-                a.refresh()
-                a.snackbar("Answer key cleared", "Undo") { a.store.saveKey(a.keySet, old); a.refresh() }
-            }
-        }, a.block(0))
+    private fun clear() = a.confirm("Clear the answer key?", "All ${settings.questionCount} answers of this key will be removed.", "Clear", danger = true) {
+        val old = key.toList()
+        key = MutableList(settings.questionCount) { null }
+        a.store.saveKey(a.keySet, key)
+        a.refresh()
+        a.snackbar("Answer key cleared", "Undo") { a.store.saveKey(a.keySet, old); a.refresh() }
     }
 
     private fun paste() = a.bottomSheet("Type or paste the key") { col, d ->

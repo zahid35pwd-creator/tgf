@@ -1,144 +1,245 @@
 package com.omrscanner.app
 
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
+import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import com.omrscanner.app.ui.Icon
 import com.omrscanner.app.ui.IconDrawable
-import com.omrscanner.app.ui.ProgressRing
-import java.util.Calendar
+import com.omrscanner.core.SheetSpec
+import com.omrscanner.core.SheetTemplate
 
-/** Dashboard: the active exam, the scan actions and the latest results. */
+/** Home: the active exam, choosing the OMR sheet, sheet tools and tips. */
 class HomeTab(private val a: MainActivity) {
-    fun build(): View = with(a) {
-        val s = store.settings
-        val column = vertical().apply { setPadding(dp(16), dp(18), dp(16), dp(24)) }
+    private val s = a.store.settings
 
-        // Greeting header with the app mark.
-        val header = horizontal().apply { setPadding(dp(4), 0, dp(4), dp(18)) }
-        val hello = vertical()
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        val greeting = when (hour) { in 5..11 -> "Good morning"; in 12..16 -> "Good afternoon"; else -> "Good evening" }
-        hello.add(text(greeting, TextStyle.CAPTION, Ui.MUTED), wrap())
-        hello.add(text("OMR Scanner", TextStyle.DISPLAY.sp - 4, Ui.TEXT, true).apply { letterSpacing = -0.02f }, wrap())
-        header.add(hello, weighted())
-        header.add(iconBadge(Icon.SCAN, Ui.ON_PRIMARY, Ui.PRIMARY, 48, 24), LinearLayout.LayoutParams(dp(48), dp(48)))
-        column.add(header, block(0))
-
-        column.add(examCard(s), block(16))
-        column.add(heroButton(), block(12))
-
-        val tiles = horizontal()
-        tiles.add(tile(Icon.GALLERY, "From gallery", "Pick a scanned picture", Ui.BLUE, blueBg()) { scanSheet(false) },
-            weighted().apply { marginEnd = dp(12) })
-        tiles.add(tile(Icon.PDF, "Many sheets", "Check a whole PDF", Ui.PURPLE, Ui.PURPLE_BG) {
-            startActivity(Intent(this, BatchActivity::class.java))
-        }, weighted())
-        column.add(tiles, block(22))
-
-        val history = store.history()
-        column.add(sectionHeader("Recent results", if (history.isNotEmpty()) "See all" else null) { show(MainActivity.Tab.RESULTS) }, block(4))
-        if (history.isEmpty()) {
-            val c = card(4)
-            c.add(emptyState(Icon.CHART, "No results yet", "Scan a sheet and tap Save to keep its result here."), block(0))
-            column.add(c, block(16))
-        } else {
-            val c = card(6)
-            history.takeLast(3).reversed().forEachIndexed { i, r ->
-                if (i > 0) c.add(divider(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)).apply { marginStart = dp(68) })
-                c.add(ResultsTab.resultRow(this, r) { show(MainActivity.Tab.RESULTS) }, block(0))
-            }
-            column.add(c, block(16))
-        }
-
-        column.add(sectionHeader("Tips for a good scan"), block(4))
-        val tips = card(6)
-        tips.add(listRow(Icon.SCAN, "Keep the whole sheet in view", "All 4 corner squares, sheet filling most of the photo", chevron = false), block(0))
-        tips.add(listRow(Icon.INFO, "Flat and evenly lit", "Avoid strong shadows and glare", Ui.ORANGE, Ui.ORANGE_BG, chevron = false), block(0))
-        tips.add(listRow(Icon.SHEET, "Any OMR sheet", "Teach a new design from a blank copy in Settings", Ui.GREEN, Ui.GREEN_BG, chevron = false) {
-            show(MainActivity.Tab.SETTINGS)
-        }, block(0))
-        column.add(tips, block(0))
-
-        ScrollView(this).apply {
-            isVerticalScrollBarEnabled = false
-            setBackgroundColor(Ui.BACKGROUND)
-            addView(column)
-        }
+    private fun save(new: ExamSettings) {
+        a.store.settings = new
+        a.refresh()
     }
 
-    private fun blueBg() = if (Ui.dark) 0xFF172A45.toInt() else 0xFFE6F0FE.toInt()
+    fun build(): View = with(a) {
+        val (root, column) = tabPage("OMR Scanner", iconButton(Icon.MORE) { appMenu() })
 
-    private fun examCard(s: ExamSettings): View = with(a) {
-        val c = clickableCard(18) { show(MainActivity.Tab.SETTINGS) }
+        column.add(sectionHeader("Active exam"), block(4))
+        column.add(examCard(), block(18))
+
+        column.add(sectionHeader("OMR sheet"), block(4))
+        column.add(banner(Icon.INFO,
+            "Choose a ready-made sheet only if your answer sheet is exactly the same design. For any other OMR sheet, add it as a new sheet first.",
+            Ui.ON_PRIMARY_LIGHT, Ui.PRIMARY_LIGHT), block(10))
+        for (t in store.templates()) column.add(templateCard(t), block(10))
+        column.add(addSheetCard(), block(18))
+
+        column.add(sectionHeader("Tools"), block(4))
+        val tools = card(6)
+        val spec = blankSpec()
+        tools.add(listRow(Icon.SAVE, "Download blank sheet (PDF)", "This app's sheet · ${spec.questionCount} questions · ${spec.optionCount} options") {
+            SheetPrinter.sharePdf(this, spec)
+        }, block(0))
+        tools.add(divider(), dividerParams())
+        tools.add(listRow(Icon.PRINT, "Print blank sheet", "Print, or save as PDF from the print screen", Ui.PURPLE, Ui.PURPLE_BG) {
+            SheetPrinter.print(this, spec)
+        }, block(0))
+        column.add(tools, block(6))
+        column.add(text("Board sheets (BCS, SSC/HSC) can't be printed here — use the official printed sheets.", 12.5f, Ui.MUTED).apply {
+            setPadding(dp(4), 0, dp(4), 0)
+        }, block(18))
+
+        column.add(sectionHeader("Tips"), block(4))
+        val tips = card(6)
+        tips.add(listRow(Icon.SHEET, "1 · Choose the OMR sheet", "Pick the sheet type above, or add your own from a blank copy", chevron = false), block(0))
+        tips.add(listRow(Icon.KEY, "2 · Set the answer key", "Key tab: tap answers, paste them, or scan a filled key sheet", Ui.GREEN, Ui.GREEN_BG, chevron = false), block(0))
+        tips.add(listRow(Icon.SCAN, "3 · Scan the sheets", "Scanner tab: camera, photo or PDF", Ui.ORANGE, Ui.ORANGE_BG, chevron = false), block(0))
+        tips.add(listRow(Icon.CHART, "4 · See results", "Results tab: exam-wise results and Word / Excel / PDF export", Ui.PURPLE, Ui.PURPLE_BG, chevron = false), block(0))
+        column.add(tips, block(0))
+        root
+    }
+
+    private fun dividerParams() = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, a.dp(1)).apply { marginStart = a.dp(68) }
+
+    /** The blank sheet the tools make: this app's own design with the current question / option count. */
+    private fun blankSpec() = SheetSpec(
+        s.questionCount.coerceIn(1, SheetTemplate.OMR_SCANNER.maxQuestions),
+        s.optionCount.coerceIn(4, 5), s.labels, examName = s.examName,
+    )
+
+    private fun banner(icon: Icon, message: String, fg: Int, bg: Int): View = with(a) {
+        val row = horizontal().apply { setPadding(dp(14), dp(12), dp(14), dp(12)); background = rounded(bg, dp(16).toFloat()) }
+        row.add(iconBadge(icon, fg, android.graphics.Color.TRANSPARENT, 28, 20), LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(10) })
+        row.add(text(message, 13.5f, fg), weighted())
+        row
+    }
+
+    // ---- Active exam -------------------------------------------------------------------------
+
+    private fun examCard(): View = with(a) {
+        val c = clickableCard(18) { editExam() }
         val top = horizontal()
         val info = vertical()
-        info.add(text("ACTIVE EXAM", TextStyle.OVERLINE, Ui.PRIMARY), block(4))
         info.add(text(s.examName.ifBlank { "Untitled exam" }, TextStyle.HEADING).apply { maxLines = 2 }, block(2))
-        info.add(text(s.template.name, TextStyle.CAPTION, Ui.MUTED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, block(0))
+        info.add(text(if (store.hasTemplate) s.template.name else "No OMR sheet selected", TextStyle.CAPTION,
+            if (store.hasTemplate) Ui.MUTED else Ui.ORANGE).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, block(0))
         top.add(info, weighted())
-
-        val keyed = store.storedKey(null).count { it != null }
-        val sets = store.setsWithKeys()
-        val ring = ProgressRing(this, Ui.CARD_ALT, if (keyed == s.questionCount || sets.isNotEmpty()) Ui.GREEN else Ui.PRIMARY, Ui.TEXT).apply {
-            strokeDp = 6f
-            label = if (sets.isNotEmpty() && keyed == 0) "${sets.size} set${if (sets.size > 1) "s" else ""}" else "$keyed"
-            setProgress(if (sets.isNotEmpty() && keyed == 0) 1f else keyed.toFloat() / s.questionCount)
-        }
-        val ringBox = vertical().apply { gravity = Gravity.CENTER_HORIZONTAL }
-        ringBox.add(ring, LinearLayout.LayoutParams(dp(64), dp(64)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(4) })
-        ringBox.add(text(if (sets.isNotEmpty() && keyed == 0) "keyed" else "of ${s.questionCount} keyed", 11f, Ui.MUTED), wrap())
-        ringBox.setOnClickListener { show(MainActivity.Tab.KEY) }
-        top.add(ringBox, wrap().apply { marginStart = dp(12) })
+        top.add(iconBadge(Icon.EDIT, Ui.PRIMARY, Ui.CARD_ALT, 40, 20), LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(10) })
         c.add(top, block(14))
 
         val chips = horizontal()
         chips.add(chip("${s.questionCount} questions"), wrap().apply { marginEnd = dp(6) })
-        chips.add(chip(s.labelRange), wrap().apply { marginEnd = dp(6) })
+        chips.add(chip("${s.optionCount} options · ${s.labelRange}"), wrap().apply { marginEnd = dp(6) })
         val marks = "+${fmt(s.perCorrect)}" + if (s.perWrong > 0) " / −${fmt(s.perWrong)}" else ""
         chips.add(chip(marks, Ui.GREEN, Ui.GREEN_BG), wrap())
-        c.add(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(chips) }, block(0))
+        c.add(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(chips) }, block(12))
+
+        val keyed = store.storedKey(null).count { it != null } + store.setsWithKeys().size
+        c.add(text(if (keyed == 0) "Answer key not set yet — open the Key tab" else "Answer key ready", 13f,
+            if (keyed == 0) Ui.ORANGE else Ui.GREEN, true), block(0))
         c
     }
 
-    private fun heroButton(): View = with(a) {
-        val r = dp(22).toFloat()
-        val hero = horizontal().apply {
-            setPadding(dp(18), dp(18), dp(18), dp(18))
-            val grad = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.PRIMARY, if (Ui.dark) 0xFF6D5BF0.toInt() else 0xFF6D4AE8.toInt()))
-            grad.cornerRadius = r
-            background = ripple(grad, r, 0x33FFFFFF)
-            elevation = dp(4).toFloat()
-            isClickable = true
-            setOnClickListener { scanSheet(true) }
+    /** One sheet with every exam setting: name, questions, options (4 or 5), letters and marking. */
+    private fun editExam() = a.bottomSheet("Exam settings") { col, d ->
+        with(a) {
+            val t = s.template
+            val (nameBox, name) = inputField("Exam name (printed on the sheet and reports)", s.examName, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
+            col.add(nameBox, block(12))
+            val (countBox, count) = inputField("Number of questions (1–${t.maxQuestions})", s.questionCount.toString(), InputType.TYPE_CLASS_NUMBER)
+            col.add(countBox, block(12))
+
+            val optionChoices = listOf(4, 5).filter { it <= t.maxOptions }.ifEmpty { listOf(t.maxOptions) }
+            var options = s.optionCount.coerceIn(optionChoices.first(), optionChoices.last())
+            col.add(text("Options per question", TextStyle.CAPTION, Ui.MUTED).apply { setPadding(dp(4), 0, 0, dp(6)) }, wrap())
+            lateinit var optBar: View
+            fun optionBar(): View = segmented(optionChoices.map { "$it options" }, optionChoices.indexOf(options).coerceAtLeast(0)) { i ->
+                options = optionChoices[i]
+                val idx = col.indexOfChild(optBar)
+                col.removeView(optBar)
+                optBar = optionBar()
+                col.addView(optBar, idx, block(12))
+            }
+            optBar = optionBar()
+            col.add(optBar, block(12))
+
+            var bangla = s.banglaLabels
+            col.add(text("Option letters", TextStyle.CAPTION, Ui.MUTED).apply { setPadding(dp(4), 0, 0, dp(6)) }, wrap())
+            lateinit var letterBar: View
+            fun lettersBar(): View = segmented(listOf("A B C D", "ক খ গ ঘ"), if (bangla) 1 else 0) { i ->
+                bangla = i == 1
+                val idx = col.indexOfChild(letterBar)
+                col.removeView(letterBar)
+                letterBar = lettersBar()
+                col.addView(letterBar, idx, block(12))
+            }
+            letterBar = lettersBar()
+            col.add(letterBar, block(12))
+
+            val decimal = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            val marks = horizontal()
+            val (cBox, correct) = inputField("Marks per correct", fmt(s.perCorrect), decimal)
+            val (wBox, wrong) = inputField("Negative per wrong", fmt(s.perWrong), decimal)
+            marks.add(cBox, weighted().apply { marginEnd = dp(10) })
+            marks.add(wBox, weighted())
+            col.add(marks, block(18))
+
+            col.add(button("Save") {
+                val n = count.text.toString().toIntOrNull()
+                val pc = correct.text.toString().toDoubleOrNull()
+                val pw = wrong.text.toString().ifBlank { "0" }.toDoubleOrNull()
+                when {
+                    n == null || n !in 1..t.maxQuestions -> count.error = "Enter 1 to ${t.maxQuestions}"
+                    pc == null || pc <= 0 -> correct.error = "Enter a positive number"
+                    pw == null || pw < 0 -> wrong.error = "Enter 0 or more"
+                    else -> {
+                        d.dismiss()
+                        save(s.copy(examName = name.text.toString().trim(), questionCount = n, optionCount = options,
+                            banglaLabels = bangla, perCorrect = pc, perWrong = pw))
+                    }
+                }
+            }, block(0))
         }
-        hero.add(ImageView(this).apply {
-            setImageDrawable(IconDrawable(Icon.CAMERA, Ui.ON_PRIMARY, dp(28)))
-            scaleType = ImageView.ScaleType.CENTER
-            background = rounded(0x33FFFFFF, dp(18).toFloat())
-        }, LinearLayout.LayoutParams(dp(56), dp(56)).apply { marginEnd = dp(16) })
-        val t = vertical()
-        t.add(text("Scan a sheet", 20f, Ui.ON_PRIMARY, true), wrap())
-        t.add(text("Take a photo of a filled answer sheet", 14f, Ui.ON_PRIMARY).apply { alpha = 0.85f }, wrap())
-        hero.add(t, weighted())
-        hero.add(ImageView(this).apply { setImageDrawable(IconDrawable(Icon.NEXT, Ui.ON_PRIMARY, dp(22))) }, wrap())
-        hero
     }
 
-    private fun tile(icon: Icon, title: String, sub: String, tint: Int, bg: Int, onClick: () -> Unit): View = with(a) {
-        val c = clickableCard(16, onClick)
-        c.add(iconBadge(icon, tint, bg, 42, 22), LinearLayout.LayoutParams(dp(42), dp(42)).apply { bottomMargin = dp(12) })
-        c.add(text(title, 15f, Ui.TEXT, true), wrap())
-        c.add(text(sub, 12.5f, Ui.MUTED), wrap())
-        c.setBackgroundColor(Color.TRANSPARENT)
-        val radius = dp(20).toFloat()
-        c.background = ripple(rounded(Ui.CARD, radius, if (Ui.dark) Ui.DIVIDER else 0, if (Ui.dark) dp(1) else 0), radius)
+    // ---- OMR sheets --------------------------------------------------------------------------
+
+    private fun templateCard(t: SheetTemplate): View = with(a) {
+        val on = store.hasTemplate && t.id == s.templateId
+        val r = dp(20).toFloat()
+        val c = clickableCard(14) {
+            if (on) return@clickableCard
+            save(s.copy(
+                template = t,
+                questionCount = t.maxQuestions,
+                optionCount = s.optionCount.coerceIn(minOf(4, t.maxOptions), t.maxOptions),
+                // Board sheets print ক খ গ ঘ; default to them when switching to one.
+                banglaLabels = t.optionLabels == SheetSpec.BANGLA_LABELS,
+            ))
+            snackbar("Selected \"${t.name}\"")
+        }
+        c.background = ripple(rounded(if (on) Ui.PRIMARY_LIGHT else Ui.CARD, r, if (on) Ui.PRIMARY else Ui.DIVIDER, dp(if (on) 1.5f else 1f)), r)
+        val row = horizontal()
+        row.add(iconBadge(Icon.SHEET, if (on) Ui.ON_PRIMARY else Ui.PRIMARY, if (on) Ui.PRIMARY else Ui.CARD_ALT, 44, 22),
+            LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(14) })
+        val texts = vertical()
+        texts.add(text(t.name, 15f, Ui.TEXT, true), wrap())
+        val details = listOf("${t.maxQuestions} questions", if (t.custom) "added by you" else "ready-made") + t.fields.map { it.name }.take(2)
+        texts.add(text(details.joinToString(" · "), 12.5f, Ui.MUTED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, wrap())
+        row.add(texts, weighted())
+        if (t.custom) row.add(iconButton(Icon.TRASH, Ui.RED, sizeDp = 40) {
+            confirm("Delete \"${t.name}\"?", "This sheet and its answer keys will be removed.", "Delete", danger = true) {
+                store.deleteTemplate(t.id)
+                refresh()
+            }
+        }, LinearLayout.LayoutParams(dp(40), dp(40)))
+        row.add(ImageView(this).apply {
+            setImageDrawable(IconDrawable(if (on) Icon.CHECK else Icon.CHEVRON, if (on) Ui.PRIMARY else Ui.MUTED, dp(22)))
+        }, wrap().apply { marginStart = dp(6) })
+        c.add(row, block(0))
         c
+    }
+
+    private fun addSheetCard(): View = with(a) {
+        val c = clickableCard(16) { startActivity(Intent(this, SheetSetupActivity::class.java)) }
+        c.background = ripple(rounded(Ui.CARD, dp(20).toFloat(), Ui.PRIMARY, dp(1.5f)), dp(20).toFloat())
+        val row = horizontal()
+        row.add(iconBadge(Icon.PLUS, Ui.ON_PRIMARY, Ui.PRIMARY, 44, 22), LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(14) })
+        val t = vertical()
+        t.add(text("Add a new OMR sheet", 15f, Ui.TEXT, true), wrap())
+        t.add(text("For any other design: give the app a blank copy (PDF, scan or photo)", 12.5f, Ui.MUTED), wrap())
+        row.add(t, weighted())
+        c.add(row, block(0))
+        c
+    }
+
+    companion object {
+        /** Top-of-tab banner naming the selected OMR sheet, or asking to pick one on Home. Null view text when fine. */
+        fun selectedSheet(a: MainActivity): View = with(a) {
+            val row = horizontal().apply {
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                background = rounded(Ui.CARD, dp(14).toFloat(), if (store.hasTemplate) Ui.DIVIDER else Ui.ORANGE, dp(1))
+            }
+            if (store.hasTemplate) {
+                row.add(iconBadge(Icon.SHEET, Ui.ON_PRIMARY_LIGHT, Ui.PRIMARY_LIGHT, 36, 18), LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(12) })
+                val t = vertical()
+                t.add(text("OMR SHEET", 11f, Ui.MUTED, true).apply { letterSpacing = 0.08f }, wrap())
+                t.add(text(store.settings.template.name, 15f, Ui.TEXT, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, wrap())
+                row.add(t, weighted())
+                row.add(text("Change", 13.5f, Ui.PRIMARY, true).apply {
+                    setPadding(dp(10), dp(6), dp(10), dp(6))
+                    setOnClickListener { show(MainActivity.Tab.HOME) }
+                }, wrap())
+            } else {
+                row.add(iconBadge(Icon.WARNING, Ui.ORANGE, Ui.ORANGE_BG, 36, 18), LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(12) })
+                row.add(text("No OMR sheet selected. Choose one on the Home tab first.", 14f, Ui.TEXT), weighted())
+                row.add(text("Home", 13.5f, Ui.PRIMARY, true).apply {
+                    gravity = Gravity.CENTER
+                    setPadding(dp(10), dp(6), dp(10), dp(6))
+                    setOnClickListener { show(MainActivity.Tab.HOME) }
+                }, wrap())
+            }
+            row
+        }
     }
 }

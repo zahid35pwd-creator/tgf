@@ -5,7 +5,7 @@ each question's marked answer, and the score against your answer key (with optio
 
 ## Supported sheets
 
-Choose the type in **Settings → Sheet type**:
+Choose the sheet on the **Home** tab:
 
 | Sheet | Questions | Also reads |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ Answer keys can be entered separately for each set (ক খ গ ঘ, or 0–9 fo
 
 ### Any other OMR sheet
 
-In **Settings → Add a new sheet type**, give the app a **blank** copy of the sheet (PDF, scan or photo).
+On the **Home** tab, **Add a new OMR sheet**, give the app a **blank** copy of the sheet (PDF, scan or photo).
 It finds every bubble and works out the answer blocks, number fields (roll, registration…) and letter codes (set).
 On the review screen you can check them coloured on the sheet with question numbers, change a field's type, name the fields,
 mark which is the roll / ID and which is the set, and choose the question order and option letters. The saved sheet type then works
@@ -29,7 +29,7 @@ so photograph them on a darker surface with the whole page in view (flat scans a
 
 ## Many sheets at once (PDF → Word)
 
-Tap **Many sheets** on the home screen, or share a PDF to the app. Every page is checked, and you get a list sorted
+On the **Scanner** tab choose **PDF**, or share a PDF to the app. Every page is checked, and you get a list sorted
 by roll / registration number. Save or share it as a **Word (.docx) report**. The report has a summary table (ID, set,
 score, right / wrong / blank) and each candidate's answers, with the correct option shown next to every mistake.
 
@@ -41,17 +41,15 @@ allow installing from your browser or file manager. The same release has blank s
 
 ## How to use
 
-The app has four tabs: **Home**, **Answer key**, **Results** and **Settings**. It follows the phone's light / dark mode.
+Four tabs: **Home**, **Key**, **Scanner** and **Results**. App settings (light / dark mode, share, about) are in the ⋮ menu.
 
-1. **Settings**: exam name, number of questions, options, A B C or ক খ গ letters, marks per correct answer and
-   negative marks, and the sheet type. *Print blank sheet* prints this app's own sheet (or use [`sheets/`](sheets)).
-2. **Answer key**: tap the right options, type or paste them (`ABDC…`), or scan one sheet filled in with the
-   correct answers. Board sheets can have one key per set.
-3. **Scan**: tap *Scan a sheet* on Home, or *From gallery* for a scanned picture. You can also share a picture to the app.
-4. The result shows the score, roll number (tap to correct) and counts, then the sheet with every mark drawn on it
-   (pinch to zoom) or a grid of all answers (tap one for details): green = correct, red = wrong,
-   orange = unanswered, purple = several marks. Tap *Save* to keep it.
-5. **Results**: class summary with a score chart, search and sort, and export as a Word report or a CSV file.
+1. **Home**: tap the active exam to set its name, number of questions, 4 or 5 options, A B C D or ক খ গ ঘ letters and marking.
+   Choose the OMR sheet: a ready-made one only if your sheet is exactly the same design, otherwise **Add a new OMR sheet**
+   from a blank copy. Tools: download or print this app's blank sheet.
+2. **Key**: enter the answer key for the selected sheet (and each question set): scan a filled key with the camera, a photo or a PDF,
+   type / paste it (`ABDC…`), or tap the answers.
+3. **Scanner**: scan from the camera, a photo or a PDF. A PDF with several pages is checked page by page into a report.
+4. **Results**: results grouped by exam. Open an exam for its summary, each student's result, and Word / Excel (CSV) / PDF export.
 
 Rules: one bubble per question. A blank question gets 0. A wrong answer, or several bubbles filled in,
 loses the negative mark. Faint or erased marks are flagged (⚠) for you to check.

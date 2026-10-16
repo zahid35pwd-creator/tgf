@@ -37,6 +37,7 @@ class FilesProvider : ContentProvider() {
     override fun getType(uri: Uri): String = when (uri.lastPathSegment?.substringAfterLast('.')?.lowercase()) {
         "jpg", "jpeg" -> "image/jpeg"
         "csv" -> "text/csv"
+        "pdf" -> "application/pdf"
         "docx" -> BatchActivity.DOCX
         else -> "application/octet-stream"
     }

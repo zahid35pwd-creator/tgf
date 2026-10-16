@@ -25,59 +25,112 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Saved results: class summary, search and sort, details, delete with undo, and Word / CSV export. */
+/** Saved results, exam by exam: tap an exam for its summary, students and Word / spreadsheet / PDF export. */
 class ResultsTab(private val a: MainActivity) {
     private lateinit var list: LinearLayout
 
+    private fun exams(): Map<String, List<SavedResult>> =
+        a.store.history().groupBy { it.examGroup }.toList().sortedByDescending { (_, r) -> r.maxOf { it.time } }.toMap()
+
     fun build(): View = with(a) {
-        val results = store.history()
-        val export = iconButton(Icon.SHARE) { exportMenu() }
-        val (root, column) = if (results.isEmpty()) tabPage("Results") else tabPage("Results", export)
-        if (results.isEmpty()) {
+        val exams = exams()
+        val open = openExam?.takeIf { it in exams }
+        openExam = open
+        return if (open == null) examList(exams) else examPage(open, exams.getValue(open))
+    }
+
+    // ---- All exams ---------------------------------------------------------------------------
+
+    private fun examList(exams: Map<String, List<SavedResult>>): View = with(a) {
+        val (root, column) = tabPage("Results", iconButton(Icon.MORE) { appMenu() })
+        if (exams.isEmpty()) {
             column.add(spacer(40), block(0))
             column.add(emptyState(Icon.CHART, "No saved results", "After scanning a sheet, tap Save. Results from a PDF of sheets can be added too.",
-                "Scan a sheet") { scanSheet(true) }, block(0))
+                "Go to Scanner") { show(MainActivity.Tab.SCANNER) }, block(0))
             return root
         }
+        column.add(text("${exams.size} exam${if (exams.size > 1) "s" else ""} · tap one for details and export", TextStyle.CAPTION, Ui.MUTED).apply {
+            setPadding(dp(4), 0, 0, dp(10))
+        }, wrap())
+        for ((name, results) in exams) column.add(examCard(name, results), block(10))
+        root
+    }
 
-        column.add(summary(results), block(16))
+    private fun examCard(name: String, results: List<SavedResult>): View = with(a) {
+        val c = clickableCard(16) { openExam = name; refresh() }
+        val avg = results.map { percentOf(it) }.average()
+        val row = horizontal()
+        row.add(scoreBadge(this, avg, 52), LinearLayout.LayoutParams(dp(52), dp(52)).apply { marginEnd = dp(14) })
+        val t = vertical()
+        t.add(text(name, 16f, Ui.TEXT, true).apply { maxLines = 2 }, wrap())
+        val last = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(results.maxOf { it.time }))
+        t.add(text("${results.size} sheet${if (results.size > 1) "s" else ""} · average ${pct(avg)} · $last", 12.5f, Ui.MUTED), wrap())
+        row.add(t, weighted())
+        row.add(android.widget.ImageView(this).apply { setImageDrawable(IconDrawable(Icon.CHEVRON, Ui.MUTED, dp(18))) }, wrap())
+        c.add(row, block(0))
+        c
+    }
 
-        val (searchBox, search) = inputField("", query, InputType.TYPE_CLASS_TEXT, "Search roll or exam")
+    // ---- One exam ----------------------------------------------------------------------------
+
+    private fun examPage(name: String, results: List<SavedResult>): View = with(a) {
+        val back = iconButton(Icon.BACK) { openExam = null; refresh() }
+        val (root, column) = tabPage(name, iconButton(Icon.MORE) { appMenu() })
+        // Put the back arrow in front of the title.
+        ((root as LinearLayout).getChildAt(0) as LinearLayout).addView(back, 0, LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(4) })
+
+        column.add(summary(results), block(14))
+
+        column.add(sectionHeader("Export"), block(4))
+        val ex = horizontal()
+        ex.add(button("Word", ButtonStyle.SECONDARY, Icon.WORD) { shareWord(name, results) }, weighted().apply { marginEnd = dp(8) })
+        ex.add(button("Excel", ButtonStyle.SECONDARY, Icon.CSV) { shareCsv(name, results) }, weighted().apply { marginEnd = dp(8) })
+        ex.add(button("PDF", ButtonStyle.SECONDARY, Icon.PDF) { sharePdf(name, results) }, weighted())
+        column.add(ex, block(18))
+
+        val (searchBox, search) = inputField("", query, InputType.TYPE_CLASS_TEXT, "Search roll number")
         (searchBox.getChildAt(0)).visibility = View.GONE
         search.setCompoundDrawablesRelativeWithIntrinsicBounds(IconDrawable(Icon.SEARCH, Ui.MUTED, dp(20)), null, null, null)
         search.compoundDrawablePadding = dp(10)
         search.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) { query = s.toString(); fill() }
+            override fun afterTextChanged(s: Editable?) { query = s.toString(); fill(results) }
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, aft: Int) {}
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
         })
         column.add(searchBox, block(10))
 
         val sorts = horizontal()
-        Sort.entries.forEach { s ->
-            sorts.add(choiceChip(s.label, s == sort) { sort = s; refresh() }, wrap().apply { marginEnd = dp(8) })
-        }
+        Sort.entries.forEach { s -> sorts.add(choiceChip(s.label, s == sort) { sort = s; refresh() }, wrap().apply { marginEnd = dp(8) }) }
         column.add(sorts, block(14))
 
         list = vertical()
-        column.add(list, block(0))
-        fill()
+        column.add(list, block(16))
+        fill(results)
+
+        column.add(button("Delete this exam's results", ButtonStyle.DANGER, Icon.TRASH) {
+            confirm("Delete \"$name\"?", "All ${results.size} saved results of this exam will be removed.", "Delete", danger = true) {
+                val before = store.history()
+                store.setHistory(before.filter { it.examGroup != name })
+                openExam = null
+                refresh()
+                snackbar("Exam deleted", "Undo") { store.setHistory(before); refresh() }
+            }
+        }, block(0))
         root
     }
 
-    private fun fill() { with(a) {
+    private fun fill(results: List<SavedResult>) { with(a) {
         list.removeAllViews()
         val q = query.trim().lowercase()
-        val all = store.history()
-        val shown = all.filter { q.isEmpty() || it.roll.lowercase().contains(q) || it.exam.lowercase().contains(q) }.let { r ->
+        val shown = results.filter { q.isEmpty() || it.roll.lowercase().contains(q) }.let { r ->
             when (sort) {
-                Sort.NEWEST -> r.sortedByDescending { it.time }
-                Sort.SCORE -> r.sortedByDescending { percentOf(it) }
                 Sort.ROLL -> r.sortedWith(compareBy({ it.roll.isBlank() }, { it.roll.padStart(12, '0') }))
+                Sort.SCORE -> r.sortedByDescending { percentOf(it) }
+                Sort.NEWEST -> r.sortedByDescending { it.time }
             }
         }
         if (shown.isEmpty()) {
-            list.add(text("No result matches \"$query\".", TextStyle.BODY, Ui.MUTED).apply { gravity = Gravity.CENTER; setPadding(0, dp(24), 0, 0) }, block(0))
+            list.add(text("No roll number matches \"$query\".", TextStyle.BODY, Ui.MUTED).apply { gravity = Gravity.CENTER; setPadding(0, dp(24), 0, 0) }, block(0))
             return@with
         }
         val c = card(6)
@@ -91,7 +144,7 @@ class ResultsTab(private val a: MainActivity) {
     private fun summary(results: List<SavedResult>): View = with(a) {
         val c = card(18)
         val pcts = results.map { percentOf(it) }
-        c.add(text("CLASS SUMMARY", TextStyle.OVERLINE, Ui.PRIMARY), block(10))
+        c.add(text("SUMMARY", TextStyle.OVERLINE, Ui.PRIMARY), block(10))
         val tiles = horizontal()
         tiles.add(statTile("${results.size}", "Sheets", Ui.ON_PRIMARY_LIGHT, Ui.PRIMARY_LIGHT), weighted().apply { marginEnd = dp(8) })
         tiles.add(statTile(pct(pcts.average()), "Average", Ui.ON_PRIMARY_LIGHT, Ui.PRIMARY_LIGHT), weighted().apply { marginEnd = dp(8) })
@@ -140,22 +193,6 @@ class ResultsTab(private val a: MainActivity) {
         }
     }
 
-    private fun exportMenu() = a.bottomSheet("Export results") { col, d ->
-        with(a) {
-            col.add(listRow(Icon.WORD, "Word report (.docx)", "Table of all candidates, sorted by roll", Ui.BLUE, Ui.PRIMARY_LIGHT) { d.dismiss(); shareWord() }, block(0))
-            col.add(listRow(Icon.CSV, "Spreadsheet (.csv)", "Opens in Excel or Google Sheets", Ui.GREEN, Ui.GREEN_BG) { d.dismiss(); shareCsv() }, block(0))
-            col.add(listRow(Icon.TRASH, "Delete all results", null, Ui.RED, Ui.RED_BG) {
-                d.dismiss()
-                confirm("Delete all results?", "All ${store.history().size} saved results will be removed.", "Delete", danger = true) {
-                    val before = store.history()
-                    store.clearHistory()
-                    refresh()
-                    snackbar("All results deleted", "Undo") { store.setHistory(before); refresh() }
-                }
-            }, block(0))
-        }
-    }
-
     private fun share(file: File, type: String, title: String) {
         val uri = FilesProvider.uriFor(file)
         val send = Intent(Intent.ACTION_SEND).apply {
@@ -168,50 +205,96 @@ class ResultsTab(private val a: MainActivity) {
         a.startActivity(Intent.createChooser(send, "Share $title"))
     }
 
-    private fun shareWord() {
-        val s = a.store.settings
-        val labels = s.labels
+    private fun safe(name: String) = name.replace(Regex("[^A-Za-z0-9ঀ-৿ _-]"), "").trim().take(40).ifBlank { "OMR results" }
+
+    private fun byRoll(results: List<SavedResult>) = results.sortedWith(compareBy({ it.roll.isBlank() }, { it.roll.padStart(12, '0') }))
+
+    private fun shareWord(name: String, results: List<SavedResult>) {
+        val labels = a.store.settings.labels
         fun label(ch: Char) = when (ch) {
             '-' -> "—"
             '*' -> "*"
             else -> labels.getOrNull(ch - 'A') ?: ch.toString()
         }
         val dates = SimpleDateFormat("d MMM, HH:mm", Locale.US)
-        val entries = a.store.history().map { r ->
-            ReportEntry(
-                source = dates.format(Date(r.time)),
-                id = r.roll,
-                details = if (r.exam.isNotBlank()) listOf("Exam" to r.exam) else emptyList(),
-                grade = gradeOf(r),
-                answers = r.answers.map { label(it) },
-            )
+        val entries = results.map { r ->
+            ReportEntry(source = dates.format(Date(r.time)), id = r.roll, details = emptyList(), grade = gradeOf(r), answers = r.answers.map { label(it) })
         }
-        val file = File(FilesProvider.sharedDir(a), "omr-results.docx")
-        file.outputStream().use { DocxReport.write(it, s.examName.ifBlank { "OMR results" }, "Saved results • ${SimpleDateFormat("d MMM yyyy", Locale.US).format(Date())}", entries, labels) }
-        share(file, BatchActivity.DOCX, "OMR results.docx")
+        val file = File(FilesProvider.sharedDir(a), "${safe(name)} results.docx")
+        file.outputStream().use { DocxReport.write(it, name, "${results.size} sheets • ${SimpleDateFormat("d MMM yyyy", Locale.US).format(Date())}", entries, labels) }
+        share(file, BatchActivity.DOCX, file.name)
     }
 
-    private fun shareCsv() {
+    private fun shareCsv(name: String, results: List<SavedResult>) {
         val iso = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
-        val csv = StringBuilder("Time,Exam,Roll,Score,Max,Percent,Correct,Wrong,Blank,Multiple,Answers\n")
-        for (r in a.store.history()) {
+        val csv = StringBuilder("\uFEFFRoll,Score,Max,Percent,Correct,Wrong,Blank,Multiple,Time,Answers\n")
+        for (r in byRoll(results)) {
             csv.append(listOf(
-                iso.format(Date(r.time)), r.exam, r.roll, fmt(r.score), fmt(r.maxScore), String.format(Locale.US, "%.1f", percentOf(r)),
-                r.correct, r.wrong, r.blank, r.multiple, r.answers,
+                r.roll, fmt(r.score), fmt(r.maxScore), String.format(Locale.US, "%.1f", percentOf(r)),
+                r.correct, r.wrong, r.blank, r.multiple, iso.format(Date(r.time)), r.answers,
             ).joinToString(",") { cell(it.toString()) }).append('\n')
         }
-        val file = File(FilesProvider.sharedDir(a), "omr-results.csv")
+        val file = File(FilesProvider.sharedDir(a), "${safe(name)} results.csv")
         file.writeText(csv.toString())
-        share(file, "text/csv", "OMR results.csv")
+        share(file, "text/csv", file.name)
+    }
+
+    /** A simple A4 table: one row per student, sorted by roll, with a summary line. */
+    private fun sharePdf(name: String, results: List<SavedResult>) {
+        val doc = android.graphics.pdf.PdfDocument()
+        val title = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { textSize = 18f; isFakeBoldText = true }
+        val body = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { textSize = 10.5f }
+        val bold = android.graphics.Paint(body).apply { isFakeBoldText = true }
+        val line = android.graphics.Paint().apply { color = 0xFFBBBBBB.toInt(); strokeWidth = 0.6f }
+        val cols = listOf("#" to 40f, "Roll" to 70f, "Score" to 170f, "%" to 240f, "Right" to 290f, "Wrong" to 340f, "Blank" to 395f, "Multi" to 445f, "Date" to 495f)
+        val rows = byRoll(results)
+        val pcts = results.map { percentOf(it) }
+        val dates = SimpleDateFormat("d MMM", Locale.US)
+        var pageNo = 0
+        var i = 0
+        try {
+            while (i < rows.size || pageNo == 0) {
+                pageNo++
+                val page = doc.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, pageNo).create())
+                val c = page.canvas
+                var y = 50f
+                if (pageNo == 1) {
+                    c.drawText(name, 40f, y, title); y += 20f
+                    c.drawText("${results.size} sheets · average ${pct(pcts.average())} · highest ${pct(pcts.max())} · lowest ${pct(pcts.min())}", 40f, y, body); y += 26f
+                }
+                for ((h, x) in cols) c.drawText(h, x, y, bold)
+                y += 6f; c.drawLine(40f, y, 555f, y, line); y += 14f
+                while (i < rows.size && y < 800f) {
+                    val r = rows[i]
+                    val cells = listOf("${i + 1}", r.roll.ifBlank { "?" }, "${fmt(r.score)}/${fmt(r.maxScore)}", pct(percentOf(r)),
+                        "${r.correct}", "${r.wrong}", "${r.blank}", "${r.multiple}", dates.format(Date(r.time)))
+                    cells.forEachIndexed { k, v -> c.drawText(v, cols[k].second, y, body) }
+                    y += 16f
+                    i++
+                }
+                c.drawText("Page $pageNo", 520f, 825f, body)
+                doc.finishPage(page)
+            }
+            val file = File(FilesProvider.sharedDir(a), "${safe(name)} results.pdf")
+            file.outputStream().use { doc.writeTo(it) }
+            share(file, "application/pdf", file.name)
+        } catch (e: Exception) {
+            a.toast("Could not make the PDF: ${e.message}")
+        } finally {
+            doc.close()
+        }
     }
 
     private fun cell(s: String) = if (s.any { it == ',' || it == '"' || it == '\n' }) "\"" + s.replace("\"", "\"\"") + "\"" else s
 
-    enum class Sort(val label: String) { NEWEST("Newest"), SCORE("Score"), ROLL("Roll") }
+    enum class Sort(val label: String) { ROLL("Roll"), SCORE("Score"), NEWEST("Newest") }
 
     companion object {
         private var query = ""
-        private var sort = Sort.NEWEST
+        private var sort = Sort.ROLL
+
+        /** The exam whose page is open, or null for the list of exams. */
+        var openExam: String? = null
 
         fun percentOf(r: SavedResult) = if (r.maxScore > 0) 100 * r.score / r.maxScore else 0.0
 

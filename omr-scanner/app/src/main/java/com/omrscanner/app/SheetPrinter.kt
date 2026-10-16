@@ -35,6 +35,34 @@ object SheetPrinter {
         manager.print("OMR sheet (${spec.questionCount} questions)", Adapter(activity.applicationContext, spec), attrs)
     }
 
+    /** Draws the blank sheet into an A4 PDF and opens the share sheet (Save to Files, Drive, WhatsApp…). */
+    fun sharePdf(activity: Activity, spec: SheetSpec) {
+        val doc = android.graphics.pdf.PdfDocument()
+        val file = java.io.File(FilesProvider.sharedDir(activity), "omr-sheet-${spec.questionCount}q-${spec.optionCount}opt.pdf")
+        try {
+            // A4 in PostScript points.
+            val page = doc.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create())
+            val scale = min(595.0 / SheetLayout.PAGE_WIDTH, 842.0 / SheetLayout.PAGE_HEIGHT)
+            SheetPainter.paint(AndroidSheetCanvas(page.canvas, scale, (595 - SheetLayout.PAGE_WIDTH * scale) / 2, (842 - SheetLayout.PAGE_HEIGHT * scale) / 2), spec)
+            doc.finishPage(page)
+            file.outputStream().use { doc.writeTo(it) }
+        } catch (e: Exception) {
+            activity.toast("Could not make the PDF: ${e.message}")
+            return
+        } finally {
+            doc.close()
+        }
+        val uri = FilesProvider.uriFor(file)
+        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            putExtra(android.content.Intent.EXTRA_SUBJECT, file.name)
+            clipData = android.content.ClipData.newRawUri(file.name, uri)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        activity.startActivity(android.content.Intent.createChooser(send, "Save or share the blank sheet"))
+    }
+
     private class Adapter(private val context: Context, private val spec: SheetSpec) : PrintDocumentAdapter() {
         private var attributes: PrintAttributes? = null
 

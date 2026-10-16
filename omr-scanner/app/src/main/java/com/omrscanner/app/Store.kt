@@ -48,19 +48,26 @@ class SavedResult(
     val answers: String,
     /** The key used, same format ('-' = not graded); empty for results saved before it was kept. */
     val key: String = "",
+    /** The exam this sheet belongs to (results are grouped by it). */
+    val examName: String = "",
 ) {
+    /** Exam group name; older results without [examName] fall back to the label's first part. */
+    val examGroup: String get() = examName.ifBlank {
+        exam.substringBefore(" • ").takeUnless { it.startsWith("Page ") || it.startsWith("Set ") } ?: ""
+    }.ifBlank { "Untitled exam" }
+
     fun toJson(): JSONObject = JSONObject()
         .put("time", time).put("exam", exam).put("roll", roll)
         .put("score", score).put("max", maxScore)
         .put("correct", correct).put("wrong", wrong).put("blank", blank).put("multiple", multiple)
-        .put("answers", answers).put("key", key)
+        .put("answers", answers).put("key", key).put("examName", examName)
 
     companion object {
         fun fromJson(o: JSONObject) = SavedResult(
             o.getLong("time"), o.optString("exam"), o.optString("roll"),
             o.getDouble("score"), o.getDouble("max"),
             o.optInt("correct"), o.optInt("wrong"), o.optInt("blank"), o.optInt("multiple"),
-            o.optString("answers"), o.optString("key"),
+            o.optString("answers"), o.optString("key"), o.optString("examName"),
         )
     }
 }
@@ -76,7 +83,7 @@ class Store(context: Context) {
                 template = t,
                 examName = prefs.getString("exam", "") ?: "",
                 questionCount = prefs.getInt("questions", 50).coerceIn(1, t.maxQuestions),
-                optionCount = prefs.getInt("options", 4).coerceIn(2, t.maxOptions),
+                optionCount = prefs.getInt("options", 4).coerceIn(minOf(4, t.maxOptions), t.maxOptions),
                 banglaLabels = prefs.getBoolean("bangla", false),
                 perCorrect = prefs.getFloat("perCorrect", 1f).toDouble(),
                 perWrong = prefs.getFloat("perWrong", 0f).toDouble(),
@@ -167,6 +174,13 @@ class Store(context: Context) {
         for (r in results) arr.put(r.toJson())
         prefs.edit().putString("history", arr.toString()).apply()
     }
+
+    /** True once the teacher has picked an OMR sheet type (or used the app before sheet types existed). */
+    val hasTemplate get() = prefs.contains("template")
+
+    var themeMode: String
+        get() = prefs.getString("theme", "dark") ?: "dark"
+        set(v) = prefs.edit().putString("theme", v).apply()
 
     var onboarded: Boolean
         get() = prefs.getBoolean("onboarded", false)

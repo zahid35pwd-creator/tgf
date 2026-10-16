@@ -57,29 +57,36 @@ object Ui {
     var ORANGE_BG = 0; private set
     var PURPLE_BG = 0; private set
 
-    /** Stitch "OMR_ENGINE" studio palette — dark only, regardless of the phone's day/night setting. */
+    /** Theme mode chosen in the ⋮ menu: "dark" (default), "light" or "system". */
+    fun mode(context: Context) = context.getSharedPreferences("omr", Context.MODE_PRIVATE).getString("theme", "dark") ?: "dark"
+
+    /** Amber/teal studio palette; dark by default, light or phone-following when chosen in the ⋮ menu. */
     fun apply(context: Context) {
-        dark = true
-        PRIMARY = 0xFFF2B33D.toInt()           // amber — filled CTAs, overline labels, active chips
-        ON_PRIMARY = 0xFF0E1012.toInt()        // near-black text on amber
-        PRIMARY_LIGHT = 0xFF1F2A28.toInt()     // dark teal tint — chip and icon-badge background
-        ON_PRIMARY_LIGHT = 0xFF4DD5BE.toInt()  // teal — label on dark-teal pill
-        BACKGROUND = 0xFF0B0F10.toInt()        // near-black with faint teal cast
-        CARD = 0xFF13181B.toInt()              // card body
-        CARD_ALT = 0xFF1A2024.toInt()          // inset / segmented bar / disabled tile
-        TEXT = 0xFFF2F3EE.toInt()
-        MUTED = 0xFF8A98A0.toInt()
-        DIVIDER = 0xFF242C32.toInt()           // 1dp card border
-        // Semantic colours for sheet-reading verdicts. Kept on-brand with amber/teal.
-        GREEN = 0xFF4DD5BE.toInt()             // "correct" / success → teal
-        RED = 0xFFF77E6B.toInt()               // "wrong" / warning → warm red
-        ORANGE = 0xFFF2B33D.toInt()            // "blank" / draft → amber (same hue as PRIMARY)
-        PURPLE = 0xFFB48BFF.toInt()            // "multiple"
-        BLUE = 0xFF6AA8FF.toInt()              // "unkeyed" / informational
-        GREEN_BG = 0xFF142623.toInt()
-        RED_BG = 0xFF2A1816.toInt()
-        ORANGE_BG = 0xFF2A2317.toInt()
-        PURPLE_BG = 0xFF1E1A2A.toInt()
+        dark = when (mode(context)) {
+            "light" -> false
+            "system" -> (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            else -> true
+        }
+        fun c(light: Long, night: Long) = (if (dark) night else light).toInt()
+        PRIMARY = c(0xFFE9A21F, 0xFFF2B33D)          // amber — filled CTAs, active chips
+        ON_PRIMARY = c(0xFF14110A, 0xFF0E1012)
+        PRIMARY_LIGHT = c(0xFFE3F4F0, 0xFF1F2A28)    // teal tint — chip and badge background
+        ON_PRIMARY_LIGHT = c(0xFF0F7F6E, 0xFF4DD5BE) // teal — label on the tint
+        BACKGROUND = c(0xFFF4F5F2, 0xFF0B0F10)
+        CARD = c(0xFFFFFFFF, 0xFF13181B)
+        CARD_ALT = c(0xFFEEF0EC, 0xFF1A2024)
+        TEXT = c(0xFF12161A, 0xFFF2F3EE)
+        MUTED = c(0xFF5E6B73, 0xFF8A98A0)
+        DIVIDER = c(0xFFE0E4E1, 0xFF242C32)
+        GREEN = c(0xFF0F8F7B, 0xFF4DD5BE)
+        RED = c(0xFFD2453A, 0xFFF77E6B)
+        ORANGE = c(0xFFC7820B, 0xFFF2B33D)
+        PURPLE = c(0xFF7C4DDB, 0xFFB48BFF)
+        BLUE = c(0xFF2F6FD6, 0xFF6AA8FF)
+        GREEN_BG = c(0xFFE2F5F1, 0xFF142623)
+        RED_BG = c(0xFFFCE9E6, 0xFF2A1816)
+        ORANGE_BG = c(0xFFFBF0DA, 0xFF2A2317)
+        PURPLE_BG = c(0xFFEFE8FC, 0xFF1E1A2A)
     }
 
     /** Colour for a percentage: green ≥ 80, primary ≥ 60, orange ≥ 40, red below. */

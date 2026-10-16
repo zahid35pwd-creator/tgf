@@ -61,7 +61,7 @@ class BatchActivity : BaseActivity() {
         page.add(hero, block(4))
 
         val how = card(6)
-        how.add(listRow(Icon.SHEET, "Read as \"${settings.template.name}\"", "${settings.questionCount} questions · change in Settings", chevron = false), block(0))
+        how.add(listRow(Icon.SHEET, "Read as \"${settings.template.name}\"", "${settings.questionCount} questions · change on the Home tab", chevron = false), block(0))
         val keyed = store.storedKey(null).any { it != null } || store.setsWithKeys().isNotEmpty()
         how.add(if (keyed) listRow(Icon.KEY, "Graded with your answer key", "Each set uses its own key when entered", Ui.GREEN, Ui.GREEN_BG, chevron = false)
         else listRow(Icon.KEY, "No answer key yet", "Only the marked answers will be listed", Ui.ORANGE, Ui.ORANGE_BG, chevron = false), block(0))
@@ -254,7 +254,7 @@ class BatchActivity : BaseActivity() {
                 SavedResult(
                     time = System.currentTimeMillis(), exam = listOf(settings.examName, e.source).filter { it.isNotBlank() }.joinToString(" • "),
                     roll = e.id, score = g.score, maxScore = g.maxScore, correct = g.correct, wrong = g.wrong,
-                    blank = g.blank, multiple = g.multiple, key = ScanActivity.keyString(g), answers = e.answers.joinToString("") { a ->
+                    blank = g.blank, multiple = g.multiple, key = ScanActivity.keyString(g), examName = settings.examName, answers = e.answers.joinToString("") { a ->
                         when {
                             a == "—" -> "-"
                             a.contains(',') -> "*"

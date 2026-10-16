@@ -11,7 +11,7 @@ import android.widget.LinearLayout
 import com.omrscanner.app.ui.Icon
 import kotlin.math.abs
 
-/** Three short intro pages shown on first run (and from Settings). */
+/** Three short intro pages shown on first run (and from the ⋮ menu). */
 class OnboardingActivity : BaseActivity() {
     private class Page(val icon: Icon, val tint: () -> Int, val bg: () -> Int, val title: String, val body: String)
 

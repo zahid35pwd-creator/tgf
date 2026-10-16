@@ -101,7 +101,7 @@ class ScanActivity : BaseActivity() {
         page.add(top, block(8))
         page.add(sectionHeader("Try this"), block(4))
         val tips = card(6)
-        tips.add(listRow(Icon.SHEET, "Right sheet type", "This picture is read as \"${settings.template.name}\". Change it in Settings if needed.", chevron = false), block(0))
+        tips.add(listRow(Icon.SHEET, "Right sheet type", "This picture is read as \"${settings.template.name}\". Change it on the Home tab if needed.", chevron = false), block(0))
         tips.add(listRow(Icon.SCAN, "Whole sheet in view", "All 4 black corner squares visible, sheet filling most of the frame", Ui.GREEN, Ui.GREEN_BG, chevron = false), block(0))
         tips.add(listRow(Icon.INFO, "Even light", "No heavy shadow or glare on the bubbles", Ui.ORANGE, Ui.ORANGE_BG, chevron = false), block(0))
         page.add(tips, block(0))
@@ -366,7 +366,7 @@ class ScanActivity : BaseActivity() {
                     time = System.currentTimeMillis(), exam = examLabel(result), roll = roll,
                     score = grade.score, maxScore = grade.maxScore, correct = grade.correct, wrong = grade.wrong,
                     blank = grade.blank, multiple = grade.multiple, answers = answerString(result),
-                    key = keyString(grade),
+                    key = keyString(grade), examName = settings.examName,
                 ),
             )
             saved = true
