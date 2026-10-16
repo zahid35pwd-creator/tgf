@@ -7,93 +7,84 @@ import android.widget.LinearLayout
 import com.omrscanner.app.ui.Icon
 import com.omrscanner.app.ui.IconDrawable
 
-/** Scanner: the selected OMR sheet, tips for good pictures, and scanning from camera, photo or PDF. */
+/** Scanner: the selected OMR sheet and three ways to scan, each with its own tips. */
 class ScannerTab(private val a: MainActivity) {
+    private class Source(val icon: Icon, val title: String, val sub: String, val action: String, val tips: List<String>, val go: (MainActivity) -> Unit)
+
     fun build(): View = with(a) {
         val (root, column) = tabPage("Scanner", iconButton(Icon.MORE) { appMenu() })
-        column.add(HomeTab.selectedSheet(this), block(14))
+        column.add(HomeTab.selectedSheet(this), block(16))
         val ready = store.hasTemplate
-
-        column.add(sectionHeader("Tips for a good result"), block(4))
-        val tips = card(6)
-        TIPS.forEachIndexed { i, (icon, title, lines) ->
-            if (i > 0) tips.add(divider(), LinearLayout.LayoutParams(-1, dp(1)).apply { marginStart = dp(68) })
-            tips.add(tipRow(icon, title, lines, i == openTip) { openTip = if (openTip == i) -1 else i; refresh() }, block(0))
-        }
-        column.add(tips, block(18))
-
         column.add(sectionHeader("Scan from"), block(4))
-        column.add(source(Icon.CAMERA, "Camera", "Take a photo of the answer sheet", Ui.PRIMARY, ready) { scanSheet(true) }, block(10))
-        column.add(source(Icon.GALLERY, "Photo", "Pick a picture or scan from the gallery", Ui.BLUE, ready) { scanSheet(false) }, block(10))
-        column.add(source(Icon.PDF, "PDF", "One sheet, or many pages → a report sorted by roll", Ui.PURPLE, ready) { scanSheetPdf() }, block(0))
+        SOURCES.forEachIndexed { i, src -> column.add(sourceCard(i, src, ready), block(12)) }
         if (!ready) column.add(text("Choose the OMR sheet on the Home tab to start scanning.", 13f, Ui.ORANGE).apply {
-            gravity = Gravity.CENTER; setPadding(0, dp(12), 0, 0)
+            gravity = Gravity.CENTER; setPadding(0, dp(4), 0, 0)
         }, block(0))
         root
     }
 
-    private fun tipRow(icon: Icon, title: String, lines: List<String>, open: Boolean, onClick: () -> Unit): View = with(a) {
-        val box = vertical().apply {
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = ripple(rounded(android.graphics.Color.TRANSPARENT, dp(16).toFloat()), dp(16).toFloat())
-            setOnClickListener { onClick() }
+    private fun sourceCard(i: Int, src: Source, ready: Boolean): View = with(a) {
+        val c = card(16)
+        val row = horizontal()
+        row.add(iconBadge(src.icon, Ui.ON_PRIMARY_LIGHT, Ui.PRIMARY_LIGHT, 48, 24), LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(14) })
+        val t = vertical()
+        t.add(text(src.title, 17f, Ui.TEXT, true), wrap())
+        t.add(text(src.sub, 13f, Ui.MUTED), wrap())
+        row.add(t, weighted())
+        c.add(row, block(12))
+
+        // Tips for this source, folded by default except the first.
+        val open = openTip == i
+        val tipsHead = horizontal().apply {
+            setPadding(dp(4), dp(6), dp(4), dp(6))
+            background = ripple(rounded(android.graphics.Color.TRANSPARENT, dp(10).toFloat()), dp(10).toFloat())
+            setOnClickListener { openTip = if (open) -1 else i; refresh() }
         }
-        val head = horizontal()
-        head.add(iconBadge(icon, Ui.ON_PRIMARY_LIGHT, Ui.PRIMARY_LIGHT, 40, 20), LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginEnd = dp(14) })
-        head.add(text(title, 15f, Ui.TEXT, true), weighted())
-        head.add(ImageView(this).apply {
-            setImageDrawable(IconDrawable(Icon.CHEVRON, Ui.MUTED, dp(18)))
+        tipsHead.add(text("Tips for a good result", 13.5f, Ui.PRIMARY, true), weighted())
+        tipsHead.add(ImageView(this).apply {
+            setImageDrawable(IconDrawable(Icon.CHEVRON, Ui.PRIMARY, dp(16)))
             rotation = if (open) 90f else 0f
         }, wrap())
-        box.add(head, block(0))
+        c.add(tipsHead, block(if (open) 6 else 10))
         if (open) {
-            val body = vertical().apply { setPadding(dp(54), dp(8), 0, 0) }
-            for (l in lines) body.add(text("•  $l", 13.5f, Ui.MUTED), block(4))
-            box.add(body, block(0))
+            val body = vertical().apply { setPadding(dp(8), 0, dp(4), dp(8)) }
+            for (l in src.tips) body.add(text("•  $l", 13.5f, Ui.MUTED), block(5))
+            c.add(body, block(6))
         }
-        box
-    }
 
-    private fun source(icon: Icon, title: String, sub: String, tint: Int, enabled: Boolean, onClick: () -> Unit): View = with(a) {
-        val c = clickableCard(16) { if (enabled) onClick() else show(MainActivity.Tab.HOME) }
-        c.alpha = if (enabled) 1f else 0.5f
-        val row = horizontal()
-        row.add(iconBadge(icon, tint, Ui.CARD_ALT, 52, 26), LinearLayout.LayoutParams(dp(52), dp(52)).apply { marginEnd = dp(16) })
-        val t = vertical()
-        t.add(text(title, 17f, Ui.TEXT, true), wrap())
-        t.add(text(sub, 13f, Ui.MUTED), wrap())
-        row.add(t, weighted())
-        row.add(ImageView(this).apply { setImageDrawable(IconDrawable(Icon.NEXT, Ui.MUTED, dp(22))) }, wrap())
-        c.add(row, block(0))
+        c.add(button(src.action, ButtonStyle.PRIMARY, src.icon) { if (ready) src.go(this) else show(MainActivity.Tab.HOME) }.apply {
+            alpha = if (ready) 1f else 0.5f
+        }, block(0))
         c
     }
 
     companion object {
         private var openTip = 0
 
-        private val TIPS = listOf(
-            Triple(Icon.CAMERA, "Camera", listOf(
-                "Lay the sheet flat on a table; hold the phone straight above it.",
-                "Keep all 4 black corner squares inside the photo.",
-                "Let the sheet fill most of the frame; don't cut any edge.",
+        private val QUALITY = listOf(
+            "Even daylight or room light; no shadow of your hand or phone.",
+            "No glare on the bubbles — tilt the sheet slightly if light reflects.",
+        )
+
+        private val SOURCES = listOf(
+            Source(Icon.CAMERA, "Camera", "Take a photo of the answer sheet", "Open camera", listOf(
+                "Lay the sheet flat; hold the phone straight above it.",
+                "Keep all 4 black corner squares inside the photo; don't cut any edge.",
+                "Let the sheet fill most of the frame.",
                 "Tap to focus and hold still — no blur.",
-            )),
-            Triple(Icon.GALLERY, "Photo / scan", listOf(
-                "Use the original picture, not a screenshot or a forwarded low-quality copy.",
-                "Scanner apps (CamScanner, Google Drive scan, Adobe Scan) give the best pictures.",
-                "JPG or PNG; the whole page must be visible.",
-            )),
-            Triple(Icon.PDF, "PDF", listOf(
+            ) + QUALITY + "Sheets without corner squares: photograph on a darker surface so the page edges show.") { it.scanSheet(true) },
+            Source(Icon.GALLERY, "Photo", "Pick a picture or scan from the gallery", "Choose photo", listOf(
+                "Use the original picture, not a screenshot or a compressed forwarded copy.",
+                "Scanner apps (Google Drive scan, Adobe Scan, CamScanner) give the best pictures.",
+                "The whole page must be visible, sharp and well lit.",
+                "Next you can check the orientation and turn the picture if needed.",
+            ) + QUALITY) { it.scanSheet(false) },
+            Source(Icon.PDF, "PDF", "One sheet, or many pages → one report", "Choose PDF", listOf(
                 "One answer sheet per page.",
-                "A PDF with many pages is checked page by page into a Word / Excel report.",
+                "A PDF with many pages is checked page by page into a report sorted by roll.",
                 "Scan at 200–300 dpi, colour or greyscale.",
-            )),
-            Triple(Icon.INFO, "Picture quality", listOf(
-                "Even daylight or room light; avoid shadows of your hand or phone.",
-                "No glare on the bubbles — tilt the sheet slightly if light reflects.",
-                "Students should fill bubbles fully with a dark pen or 2B pencil.",
-                "Sheets without corner squares: photograph on a darker surface so the page edges show.",
-            )),
+                "Pages must be upright.",
+            )) { it.scanSheetPdf() },
         )
     }
 }

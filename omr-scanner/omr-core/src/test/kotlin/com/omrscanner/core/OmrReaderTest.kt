@@ -80,6 +80,25 @@ class OmrReaderTest {
     }
 
     @Test
+    fun keepOrientationReadsTurnedPicturesOnceTurnedBack() {
+        for (rotation in listOf(0.0, 90.0, 180.0, 270.0)) {
+            val rng = Random(40 + rotation.toInt())
+            val sheet = randomSheet(rng, SheetSpec(questionCount = 50))
+            val page = SyntheticSheets.render(sheet, 8.0, rng)
+            val photo = SyntheticSheets.toArgb(SyntheticSheets.photograph(page, 8.0, SyntheticSheets.PhotoParams(width = 1500, height = 2000, rotation = rotation), rng))
+            val opts = ReaderOptions(questionCount = 50, optionCount = 4, keepOrientation = true)
+            // Turned back by the person (photograph() turns clockwise, so undo with the opposite quarter turns).
+            val back = photo.rotated((4 - (rotation / 90).toInt()) % 4)
+            assertReads(sheet, OmrReader.read(back, opts), "kept, turned back from $rotation")
+            // Left as it is, a turned picture must not be silently re-turned.
+            if (rotation != 0.0) {
+                val kept = try { OmrReader.read(photo, opts) } catch (e: OmrException) { null }
+                assertTrue(kept == null || kept.answers.map { it.marked } != sheet.answers, "rotation $rotation was auto-turned despite keepOrientation")
+            }
+        }
+    }
+
+    @Test
     fun blankSheetReadsBlank() {
         val rng = Random(7)
         val sheet = FilledSheet(SheetSpec(questionCount = 40), List(40) { emptyList() }, List(6) { null })

@@ -26,6 +26,7 @@ class HomeTab(private val a: MainActivity) {
 
         column.add(sectionHeader("Active exam"), block(4))
         column.add(examCard(), block(18))
+        column.add(guide(), block(18))
 
         column.add(sectionHeader("OMR sheet"), block(4))
         column.add(banner(Icon.INFO,
@@ -37,7 +38,7 @@ class HomeTab(private val a: MainActivity) {
         column.add(sectionHeader("Tools"), block(4))
         val tools = card(6)
         val spec = blankSpec()
-        tools.add(listRow(Icon.SAVE, "Download blank sheet (PDF)", "This app's sheet · ${spec.questionCount} questions · ${spec.optionCount} options") {
+        tools.add(listRow(Icon.SAVE, "Download blank sheet (PDF)", "100 MCQ OMR sheet · ${spec.questionCount} questions · ${spec.optionCount} options") {
             SheetPrinter.sharePdf(this, spec)
         }, block(0))
         tools.add(divider(), dividerParams())
@@ -49,14 +50,44 @@ class HomeTab(private val a: MainActivity) {
             setPadding(dp(4), 0, dp(4), 0)
         }, block(18))
 
-        column.add(sectionHeader("Tips"), block(4))
-        val tips = card(6)
-        tips.add(listRow(Icon.SHEET, "1 · Choose the OMR sheet", "Pick the sheet type above, or add your own from a blank copy", chevron = false), block(0))
-        tips.add(listRow(Icon.KEY, "2 · Set the answer key", "Key tab: tap answers, paste them, or scan a filled key sheet", Ui.GREEN, Ui.GREEN_BG, chevron = false), block(0))
-        tips.add(listRow(Icon.SCAN, "3 · Scan the sheets", "Scanner tab: camera, photo or PDF", Ui.ORANGE, Ui.ORANGE_BG, chevron = false), block(0))
-        tips.add(listRow(Icon.CHART, "4 · See results", "Results tab: exam-wise results and Word / Excel / PDF export", Ui.PURPLE, Ui.PURPLE_BG, chevron = false), block(0))
-        column.add(tips, block(0))
         root
+    }
+
+    /** Step-by-step guide with ticks, so a first-time user knows what to do next. */
+    private fun guide(): View = with(a) {
+        val keyed = store.storedKey(null).any { it != null } || store.setsWithKeys().isNotEmpty()
+        val steps = listOf(
+            Triple("Choose the OMR sheet", "Below: a ready-made sheet if yours is exactly the same, otherwise add yours", store.hasTemplate) to { },
+            Triple("Set the answer key", "Key tab: scan a filled key (camera, photo, PDF) or type it; set marking", keyed) to { show(MainActivity.Tab.KEY) },
+            Triple("Scan the students' sheets", "Scanner tab: camera, photo or PDF — tap Save on each result", store.history().isNotEmpty()) to { show(MainActivity.Tab.SCANNER) },
+            Triple("See and export results", "Results tab: exam-wise results, Word / Excel / PDF", store.history().isNotEmpty()) to { show(MainActivity.Tab.RESULTS) },
+        )
+        val next = steps.indexOfFirst { !it.first.third }
+        val box = vertical()
+        box.add(sectionHeader(if (next < 0) "Tips" else "Getting started  ·  step ${next + 1} of 4"), block(4))
+        val c = card(6)
+        steps.forEachIndexed { i, (st, go) ->
+            val (title, sub, done) = st
+            if (i > 0) c.add(divider(), dividerParams())
+            val row = horizontal().apply {
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                background = ripple(rounded(android.graphics.Color.TRANSPARENT, dp(16).toFloat()), dp(16).toFloat())
+                setOnClickListener { go() }
+            }
+            val badge = if (done) iconBadge(Icon.CHECK, Ui.ON_PRIMARY, Ui.GREEN, 36, 18)
+            else text("${i + 1}", 15f, if (i == next) Ui.ON_PRIMARY else Ui.MUTED, true).apply {
+                gravity = Gravity.CENTER
+                background = rounded(if (i == next) Ui.PRIMARY else Ui.CARD_ALT, dp(18).toFloat())
+            }
+            row.add(badge, LinearLayout.LayoutParams(dp(36), dp(36)).apply { marginEnd = dp(14) })
+            val t = vertical()
+            t.add(text(title, 15f, if (done) Ui.MUTED else Ui.TEXT, true), wrap())
+            t.add(text(sub, 12.5f, Ui.MUTED), wrap())
+            row.add(t, weighted())
+            c.add(row, block(0))
+        }
+        box.add(c, block(0))
+        box
     }
 
     private fun dividerParams() = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, a.dp(1)).apply { marginStart = a.dp(68) }

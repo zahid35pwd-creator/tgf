@@ -9,7 +9,7 @@ Choose the sheet on the **Home** tab:
 
 | Sheet | Questions | Also reads |
 | --- | --- | --- |
-| This app's own sheet (print it from the app or `sheets/`) | up to 100, 4–5 options | roll number |
+| 100 MCQ OMR sheet (print it from the app or `sheets/`) | up to 100, 4–5 options | roll number |
 | BCS preliminary (BPSC, pink) | 200, ক–ঘ | registration, set, BCS and centre codes |
 | SSC/HSC education board (pink) | 50, ক–ঘ | roll, set code, registration, subject code |
 

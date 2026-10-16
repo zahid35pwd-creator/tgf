@@ -47,10 +47,18 @@ class KeyTab(private val a: MainActivity) {
         column.add(top, block(12))
 
         // Marking used when grading against this key.
-        val scheme = horizontal().apply { setPadding(dp(14), dp(12), dp(14), dp(12)); background = rounded(Ui.CARD, dp(14).toFloat(), Ui.DIVIDER, dp(1)) }
-        scheme.add(text("Marking", 14f, Ui.MUTED, true), weighted())
-        scheme.add(chip("Correct +${fmt(settings.perCorrect)}", Ui.GREEN, Ui.GREEN_BG), wrap().apply { marginEnd = dp(6) })
-        scheme.add(chip("Wrong −${fmt(settings.perWrong)}", Ui.RED, Ui.RED_BG), wrap())
+        val scheme = horizontal().apply {
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            val r = dp(14).toFloat()
+            background = ripple(rounded(Ui.CARD, r, Ui.DIVIDER, dp(1)), r)
+            setOnClickListener { editMarks() }
+        }
+        val label = vertical()
+        label.add(text("Marking", 14f, Ui.TEXT, true), wrap())
+        label.add(text("Tap to change", 12f, Ui.PRIMARY), wrap())
+        scheme.add(label, weighted())
+        scheme.add(chip("Right +${fmt(settings.perCorrect)}", Ui.GREEN, Ui.GREEN_BG), wrap().apply { marginEnd = dp(6) })
+        scheme.add(chip("Wrong ${if (settings.perWrong > 0) "−" + fmt(settings.perWrong) else "0"}", Ui.RED, Ui.RED_BG), wrap())
         column.add(scheme, block(18))
 
         val header = horizontal()
@@ -118,6 +126,32 @@ class KeyTab(private val a: MainActivity) {
         status.text = "$which$n of ${settings.questionCount} set"
         bar.progress = n
         bar.progressTintList = android.content.res.ColorStateList.valueOf(if (n == settings.questionCount) Ui.GREEN else Ui.PRIMARY)
+    }
+
+    /** Marks for a right answer and the negative mark for a wrong one (defaults: 1 and 0). */
+    private fun editMarks() = a.bottomSheet("Marking") { col, d ->
+        with(a) {
+            col.add(text("Blank answers always get 0. A wrong answer, or several bubbles filled, loses the negative mark.", TextStyle.CAPTION, Ui.MUTED), block(12))
+            val decimal = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            val (cBox, correct) = inputField("Marks for a right answer", fmt(settings.perCorrect), decimal)
+            col.add(cBox, block(12))
+            val (wBox, wrong) = inputField("Negative marks for a wrong answer (0 = none)", fmt(settings.perWrong), decimal)
+            col.add(wBox, block(10))
+            val presets = horizontal()
+            for ((label, pc, pw) in listOf(Triple("1 / 0", 1.0, 0.0), Triple("1 / −0.25", 1.0, 0.25), Triple("1 / −0.5", 1.0, 0.5), Triple("4 / −1", 4.0, 1.0))) {
+                presets.add(choiceChip(label, false) { correct.setText(fmt(pc)); wrong.setText(fmt(pw)) }, wrap().apply { marginEnd = dp(6) })
+            }
+            col.add(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(presets) }, block(16))
+            col.add(button("Save") {
+                val pc = correct.text.toString().toDoubleOrNull()
+                val pw = wrong.text.toString().ifBlank { "0" }.toDoubleOrNull()
+                when {
+                    pc == null || pc <= 0 -> correct.error = "Enter a positive number"
+                    pw == null || pw < 0 -> wrong.error = "Enter 0 or more"
+                    else -> { d.dismiss(); store.settings = store.settings.copy(perCorrect = pc, perWrong = pw); refresh() }
+                }
+            }, block(0))
+        }
     }
 
     private fun clear() = a.confirm("Clear the answer key?", "All ${settings.questionCount} answers of this key will be removed.", "Clear", danger = true) {

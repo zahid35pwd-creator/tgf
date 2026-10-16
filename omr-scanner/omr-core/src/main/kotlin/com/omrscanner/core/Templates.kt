@@ -98,7 +98,7 @@ class SheetTemplate(
         val OMR_SCANNER: SheetTemplate = with(SheetLayout) {
             SheetTemplate(
                 id = "omr-scanner",
-                name = "OMR Scanner sheet (printed from this app)",
+                name = "100 MCQ OMR sheet",
                 markerCenters = markerCenters,
                 markerSize = MARKER_SIZE,
                 questions = List(MAX_QUESTIONS) { q -> List(MAX_OPTIONS) { answerBubble(q, it) } },

@@ -15,7 +15,9 @@ import com.omrscanner.app.ui.Icon
 import com.omrscanner.app.ui.ProgressRing
 import com.omrscanner.app.ui.ZoomImageView
 import com.omrscanner.app.ui.countUp
+import com.omrscanner.core.ArgbImage
 import com.omrscanner.core.GradeResult
+import com.omrscanner.core.ImageOps
 import com.omrscanner.core.Grader
 import com.omrscanner.core.MarkStatus
 import com.omrscanner.core.OmrException
@@ -47,27 +49,77 @@ class ScanActivity : BaseActivity() {
             showError("No picture was received.")
             return
         }
-        process(uri)
+        // Our own camera pictures are turned upright from their EXIF data and the reader finds the sheet's
+        // orientation itself. Pictures from elsewhere keep the orientation the person sees and can turn.
+        if (uri.authority == FilesProvider.AUTHORITY) process { ImageSources.load(this, uri) } else open(uri)
     }
 
-    private fun process(uri: Uri) {
+    /** The picture from the gallery / a PDF, as uploaded, and the quarter turns the person chose. */
+    private var picture: ArgbImage? = null
+    private var turns = 0
+
+    private fun open(uri: Uri) {
+        processingScreen("Opening the picture", listOf("Opening the picture"), settings.template.name)
+        Thread {
+            val p = try { ImageSources.load(this, uri) } catch (e: Throwable) { null }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (p == null) showError("Could not open this picture.") else { picture = p; turns = 0; showOrientation() }
+            }
+        }.start()
+    }
+
+    /** Lets the person check the sheet is upright before reading; the default is the picture as uploaded. */
+    private fun showOrientation() {
+        val p = picture ?: return
+        val shown = p.rotated(turns)
+        val small = ImageOps.downscale(shown, 1400)
+        val bmp = Bitmap.createBitmap(small.pixels, small.width, small.height, Bitmap.Config.ARGB_8888)
+        val footer = footerBar(button("Read sheet", ButtonStyle.PRIMARY, Icon.CHECK) {
+            process(keep = true) { picture?.rotated(turns) }
+        })
+        val page = scrollingPage(if (keyMode) "Answer key picture" else "Check the picture", footer = footer)
+        page.add(statusStrip(when (turns) {
+            0 -> "AS UPLOADED"
+            1 -> "TURNED 90° RIGHT"
+            2 -> "TURNED UPSIDE DOWN"
+            else -> "TURNED 90° LEFT"
+        } + "  //  ${settings.template.name}", DotColor.OK), block(10))
+        page.add(text("Is the sheet the right way up? Its top must be at the top of the picture. If not, turn it below.", 14f, Ui.MUTED), block(10))
+        page.add(text("▲  TOP OF SHEET", 12f, Ui.PRIMARY, true).apply { gravity = Gravity.CENTER; letterSpacing = 0.08f }, block(6))
+        val holder = card(6)
+        holder.add(ZoomImageView(this).apply {
+            setImage(bmp)
+            maxHeightPx = (resources.displayMetrics.heightPixels * 0.55).toInt()
+        }, block(0))
+        page.add(holder, block(12))
+        val turn = horizontal()
+        turn.add(button("Left", ButtonStyle.SECONDARY, Icon.ROTATE) { turns = (turns + 3) % 4; showOrientation() },
+            weighted().apply { marginEnd = dp(8) })
+        turn.add(button("180°", ButtonStyle.SECONDARY, Icon.FLIP) { turns = (turns + 2) % 4; showOrientation() }, weighted().apply { marginEnd = dp(8) })
+        turn.add(button("Right", ButtonStyle.SECONDARY, Icon.ROTATE) { turns = (turns + 1) % 4; showOrientation() }, weighted())
+        page.add(turn, block(8))
+        if (turns != 0) page.add(button("Back to as uploaded", ButtonStyle.TEXT) { turns = 0; showOrientation() }, block(0))
+    }
+
+    private fun process(keep: Boolean = false, source: () -> ArgbImage?) {
         val (steps, _) = processingScreen(
             if (keyMode) "Reading the answer key" else "Reading the sheet",
             listOf("Opening the picture", "Finding the sheet", "Reading the bubbles", if (keyMode) "Collecting answers" else "Grading"),
             settings.template.name,
         )
         steps.autoAdvance()
-        val options = settings.readerOptions
+        val options = settings.readerOptions.copy(keepOrientation = keep)
         Thread {
             var result: OmrResult? = null
             var image: Bitmap? = null
             var error: String? = null
             try {
-                val picture = ImageSources.load(this, uri) ?: throw OmrException("Could not open this picture.")
-                result = OmrReader.read(picture, options)
+                val pic = source() ?: throw OmrException("Could not open this picture.")
+                result = OmrReader.read(pic, options)
                 image = ResultImage.render(result, if (keyMode) null else gradeOf(result))
             } catch (e: OmrException) {
-                error = e.message
+                error = e.message + if (keep) " If the sheet is turned, use Change orientation." else ""
             } catch (e: OutOfMemoryError) {
                 error = "Not enough memory to read this picture. Try a smaller photo."
             } catch (e: Exception) {
@@ -95,6 +147,7 @@ class ScanActivity : BaseActivity() {
             button("Retake", ButtonStyle.PRIMARY, Icon.CAMERA) { ImageSources.openCamera(this) },
         )
         val page = scrollingPage("Couldn't read the sheet", footer = footer)
+        if (picture != null) page.add(button("Change orientation", ButtonStyle.OUTLINE, Icon.ROTATE) { showOrientation() }, block(10))
         page.add(statusStrip("READ FAILED  //  ${settings.template.name}", DotColor.ERR), block(8))
         val top = vertical().apply { gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, dp(16), 0, dp(20)) }
         top.add(iconBadge(Icon.WARNING, Ui.RED, Ui.RED_BG, 88, 40), LinearLayout.LayoutParams(dp(88), dp(88)).apply { bottomMargin = dp(16) })

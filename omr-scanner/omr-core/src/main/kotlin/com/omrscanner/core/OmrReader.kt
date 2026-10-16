@@ -20,6 +20,11 @@ data class ReaderOptions(
     val workingMaxSide: Int = 1800,
     /** Resolution of [OmrResult.rectified]; 0 skips building it. */
     val rectifiedPxPerMm: Double = 5.0,
+    /**
+     * Keep the picture's orientation: the sheet's top must be at the top of the picture (give or take 45°),
+     * instead of trying all four turns. Used when the person has chosen how the picture is turned.
+     */
+    val keepOrientation: Boolean = false,
 ) {
     init {
         require(questionCount in 1..template.maxQuestions)
@@ -103,14 +108,14 @@ object OmrReader {
                 if (candidates.size < 4) {
                     throw OmrException("Could not find the 4 black corner squares. Keep the whole sheet in view, flat and evenly lit.")
                 }
-                locateSheet(t, dark, candidates)
-                    ?: throw OmrException("This does not look like a \"${t.name}\" sheet. Check the sheet type in settings and keep all 4 corner squares visible.")
+                locateSheet(t, dark, candidates, options.keepOrientation)
+                    ?: throw OmrException("This does not look like a \"${t.name}\" sheet. Check the OMR sheet chosen on the Home tab and keep all 4 corner squares visible.")
             }
             Alignment.PAGE_EDGES -> {
                 val paper = ImageOps.paperQuad(ImageOps.luminance(work))
                     ?: throw OmrException("Could not find the edges of the sheet. Photograph it on a darker background with all 4 corners in view.")
-                val rough = locateByPage(t, dark, paper)
-                    ?: throw OmrException("This does not look like a \"${t.name}\" sheet. Check the sheet type in settings and keep the whole page in view.")
+                val rough = locateByPage(t, dark, paper, options.keepOrientation)
+                    ?: throw OmrException("This does not look like a \"${t.name}\" sheet. Check the OMR sheet chosen on the Home tab and keep the whole page in view.")
                 snapToPrint(t, dark, rough)
             }
         }
@@ -162,7 +167,7 @@ object OmrReader {
     // ---- Finding the sheet -------------------------------------------------------------------
 
     /** Picks the 4 candidates (and rotation) that best explain the printed layout. */
-    private fun locateSheet(t: SheetTemplate, dark: FloatImage, all: List<MarkerCandidate>): Homography? {
+    private fun locateSheet(t: SheetTemplate, dark: FloatImage, all: List<MarkerCandidate>, keep: Boolean = false): Homography? {
         val cands = all.sortedByDescending { it.area }.take(40)
         val quads = ArrayList<Pair<Double, List<MarkerCandidate>>>()
         val n = cands.size
@@ -183,6 +188,7 @@ object OmrReader {
             for (rot in 0 until 4) {
                 val markers = List(4) { group[(it + rot) % 4] }
                 val h = Homography.fromPoints(t.markerCenters, markers.map { it.center }) ?: continue
+                if (keep && !upright(t, h)) continue
                 val s = Sampler(dark, h)
                 if (!markerSizesFit(t, h, markers) || s.marginDarkness(t) > 0.25) continue
                 val marks = if (t.orientationMarks.isEmpty()) 0.0 else t.orientationMarks.sumOf { s.at(it.x, it.y).toDouble() } / t.orientationMarks.size
@@ -198,12 +204,13 @@ object OmrReader {
     }
 
     /** Sheets without corner squares: try the paper outline in each of its 4 rotations. */
-    private fun locateByPage(t: SheetTemplate, dark: FloatImage, paper: List<Pt>): Homography? {
+    private fun locateByPage(t: SheetTemplate, dark: FloatImage, paper: List<Pt>, keep: Boolean = false): Homography? {
         val blocks = layoutBlocks(t)
         var best: Homography? = null
         var bestScore = 0.03
         for (rot in 0 until 4) {
             val h = Homography.fromPoints(t.pageCorners, List(4) { paper[(it + rot) % 4] }) ?: continue
+            if (keep && !upright(t, h)) continue
             val s = Sampler(dark, h)
             // The outline is only roughly right, so let each block find its circles before scoring.
             val ring = blocks.sumOf { b -> s.ringScoreNear(b, 4.0) } / blocks.size
@@ -279,6 +286,13 @@ object OmrReader {
     }
 
     /** Orders 4 candidates clockwise on screen (y down); null unless they form a convex quadrilateral. */
+    /** True when the sheet's top edge maps to the top of the picture (within 45°). */
+    private fun upright(t: SheetTemplate, h: Homography): Boolean {
+        val top = h.map(Pt(t.pageWidth / 2, 0.0))
+        val bottom = h.map(Pt(t.pageWidth / 2, t.pageHeight))
+        return bottom.y - top.y > abs(bottom.x - top.x)
+    }
+
     private fun clockwise(p: List<MarkerCandidate>): List<MarkerCandidate>? {
         val cx = p.sumOf { it.center.x } / 4
         val cy = p.sumOf { it.center.y } / 4
