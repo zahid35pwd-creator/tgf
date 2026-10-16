@@ -68,6 +68,10 @@ class MainActivity : BaseActivity() {
     }
 
     fun show(t: Tab, animate: Boolean = true) {
+        // Preserve scroll position when the same tab rebuilds (chip tap, choice change, etc.),
+        // but reset to the top on tab switches so each tab opens where it was last laid out.
+        val sameTab = t == tab && content.childCount > 0
+        val savedY = if (sameTab) findScroll(content.getChildAt(0))?.scrollY ?: 0 else 0
         tab = t
         buildNav()
         val view = when (t) {
@@ -78,6 +82,7 @@ class MainActivity : BaseActivity() {
         }
         content.removeAllViews()
         content.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        if (sameTab && savedY > 0) view.post { findScroll(view)?.scrollTo(0, savedY) }
         if (animate) {
             view.alpha = 0f
             view.translationY = dp(8).toFloat()

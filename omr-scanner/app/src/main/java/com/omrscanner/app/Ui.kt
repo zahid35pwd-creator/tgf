@@ -647,3 +647,11 @@ fun Context.engineHeader(overline: String, title: String, trailing: View? = null
     box.add(row, block(0))
     return box
 }
+
+/** Depth-first find of the first ScrollView under [root], or null. */
+fun findScroll(root: View?): ScrollView? {
+    if (root == null) return null
+    if (root is ScrollView) return root
+    if (root is ViewGroup) for (i in 0 until root.childCount) findScroll(root.getChildAt(i))?.let { return it }
+    return null
+}

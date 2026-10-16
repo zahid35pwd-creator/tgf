@@ -153,6 +153,8 @@ class SheetSetupActivity : BaseActivity() {
 
     private fun showReview() {
         val l = learned ?: return
+        // Keep the user where they were (tap on a block in the middle of the list, etc.) across rebuilds.
+        val savedY = findScroll(window.decorView)?.scrollY ?: 0
         val page = scrollingPage("Check the sheet", footer = footerBar(
             button("Start again", ButtonStyle.SECONDARY) { showIntro() },
             button("Save sheet", ButtonStyle.PRIMARY, Icon.CHECK) { save() },
@@ -231,6 +233,7 @@ class SheetSetupActivity : BaseActivity() {
         page.add(sectionHeader("Detected areas"), block(4))
         page.add(text("Tap the type to change it. Mark which field is the roll / ID and which is the set code.", 13f, Ui.MUTED).apply { setPadding(dp(4), 0, dp(4), 0) }, block(8))
         l.groups.forEachIndexed { i, _ -> page.add(groupRow(i), block(10)) }
+        window.decorView.post { findScroll(window.decorView)?.scrollTo(0, savedY) }
         redraw()
     }
 
