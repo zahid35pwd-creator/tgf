@@ -22,7 +22,7 @@ class KeyTab(private val a: MainActivity) {
 
     fun build(): View = with(a) {
         if (settings.template.let { it.field(it.setField) } == null) keySet = null
-        val (root, column) = tabPage("Answer key", iconButton(Icon.MORE) { appMenu() })
+        val (root, column) = tabPage("Teacher's answer sheet", iconButton(Icon.MORE) { appMenu() })
         column.add(HomeTab.selectedSheet(this), block(14))
         if (!store.hasTemplate) {
             column.add(emptyState(Icon.KEY, "Select an OMR sheet first", "The answer key belongs to an OMR sheet. Choose the sheet on the Home tab, then come back here.",

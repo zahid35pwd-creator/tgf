@@ -35,18 +35,23 @@ class HomeTab(private val a: MainActivity) {
         for (t in store.templates()) column.add(templateCard(t), block(10))
         column.add(addSheetCard(), block(18))
 
-        column.add(sectionHeader("Tools"), block(4))
+        column.add(sectionHeader("Download blank sheets"), block(4))
         val tools = card(6)
-        val spec = blankSpec()
-        tools.add(listRow(Icon.SAVE, "Download blank sheet (PDF)", "100 MCQ OMR sheet · ${spec.questionCount} questions · ${spec.optionCount} options") {
-            SheetPrinter.sharePdf(this, spec)
-        }, block(0))
-        tools.add(divider(), dividerParams())
-        tools.add(listRow(Icon.PRINT, "Print blank sheet", "Print, or save as PDF from the print screen", Ui.PURPLE, Ui.PURPLE_BG) {
-            SheetPrinter.print(this, spec)
-        }, block(0))
+        val blanks = listOf(
+            Triple("100 MCQ OMR sheet", 100, 4),
+            Triple("100 MCQ OMR sheet (5 options)", 100, 5),
+            Triple("50 MCQ OMR sheet", 50, 4),
+        )
+        blanks.forEachIndexed { i, (name, q, opt) ->
+            if (i > 0) tools.add(divider(), dividerParams())
+            tools.add(listRow(Icon.SAVE, name, "$q questions · $opt options · PDF") {
+                SheetPrinter.sharePdf(this, com.omrscanner.core.SheetSpec(q, opt,
+                    if (s.banglaLabels) com.omrscanner.core.SheetSpec.BANGLA_LABELS else com.omrscanner.core.SheetSpec.LATIN_LABELS,
+                    examName = s.examName))
+            }, block(0))
+        }
         column.add(tools, block(6))
-        column.add(text("Board sheets (BCS, SSC/HSC) can't be printed here — use the official printed sheets.", 12.5f, Ui.MUTED).apply {
+        column.add(text("Board sheets (BCS, SSC/HSC) use the official printed sheets.", 12.5f, Ui.MUTED).apply {
             setPadding(dp(4), 0, dp(4), 0)
         }, block(18))
 
@@ -92,12 +97,6 @@ class HomeTab(private val a: MainActivity) {
 
     private fun dividerParams() = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, a.dp(1)).apply { marginStart = a.dp(68) }
 
-    /** The blank sheet the tools make: this app's own design with the current question / option count. */
-    private fun blankSpec() = SheetSpec(
-        s.questionCount.coerceIn(1, SheetTemplate.OMR_SCANNER.maxQuestions),
-        s.optionCount.coerceIn(4, 5), s.labels, examName = s.examName,
-    )
-
     private fun banner(icon: Icon, message: String, fg: Int, bg: Int): View = with(a) {
         val row = horizontal().apply { setPadding(dp(14), dp(12), dp(14), dp(12)); background = rounded(bg, dp(16).toFloat()) }
         row.add(iconBadge(icon, fg, android.graphics.Color.TRANSPARENT, 28, 20), LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(10) })
@@ -115,7 +114,14 @@ class HomeTab(private val a: MainActivity) {
         info.add(text(if (store.hasTemplate) s.template.name else "No OMR sheet selected", TextStyle.CAPTION,
             if (store.hasTemplate) Ui.MUTED else Ui.ORANGE).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, block(0))
         top.add(info, weighted())
-        top.add(iconBadge(Icon.EDIT, Ui.PRIMARY, Ui.CARD_ALT, 40, 20), LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(10) })
+        val editChip = horizontal().apply {
+            setPadding(dp(10), dp(8), dp(12), dp(8))
+            background = rounded(Ui.PRIMARY_LIGHT, dp(14).toFloat())
+        }
+        editChip.add(iconBadge(Icon.EDIT, Ui.ON_PRIMARY_LIGHT, android.graphics.Color.TRANSPARENT, 20, 16),
+            LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginEnd = dp(6) })
+        editChip.add(text("Edit", 13.5f, Ui.ON_PRIMARY_LIGHT, true), wrap())
+        top.add(editChip, wrap().apply { marginStart = dp(10) })
         c.add(top, block(14))
 
         val chips = horizontal()
