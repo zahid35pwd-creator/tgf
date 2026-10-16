@@ -57,28 +57,29 @@ object Ui {
     var ORANGE_BG = 0; private set
     var PURPLE_BG = 0; private set
 
+    /** Stitch "OMR_ENGINE" studio palette — dark only, regardless of the phone's day/night setting. */
     fun apply(context: Context) {
-        dark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        fun c(light: Long, night: Long) = (if (dark) night else light).toInt()
-        PRIMARY = c(0xFF4338CA, 0xFF8B8CF8)
-        ON_PRIMARY = c(0xFFFFFFFF, 0xFF13123A)
-        PRIMARY_LIGHT = c(0xFFE9E8FD, 0xFF2A2A5A)
-        ON_PRIMARY_LIGHT = c(0xFF3730A3, 0xFFD9D9FF)
-        BACKGROUND = c(0xFFF6F6FB, 0xFF0F1020)
-        CARD = c(0xFFFFFFFF, 0xFF1A1B2E)
-        CARD_ALT = c(0xFFF2F2F8, 0xFF22233A)
-        TEXT = c(0xFF16172B, 0xFFEDEDF7)
-        MUTED = c(0xFF6B6D85, 0xFF9C9EB8)
-        DIVIDER = c(0xFFE6E6F0, 0xFF2C2D45)
-        GREEN = c(0xFF16A34A, 0xFF4ADE80)
-        RED = c(0xFFDC2626, 0xFFF87171)
-        ORANGE = c(0xFFEA7C0C, 0xFFFBBF24)
-        PURPLE = c(0xFF9333EA, 0xFFC084FC)
-        BLUE = c(0xFF2563EB, 0xFF60A5FA)
-        GREEN_BG = c(0xFFE8F7EE, 0xFF15301F)
-        RED_BG = c(0xFFFDECEC, 0xFF3A1A1E)
-        ORANGE_BG = c(0xFFFFF3E3, 0xFF372A12)
-        PURPLE_BG = c(0xFFF4E9FE, 0xFF2D1D3E)
+        dark = true
+        PRIMARY = 0xFFF2B33D.toInt()           // amber — filled CTAs, overline labels, active chips
+        ON_PRIMARY = 0xFF0E1012.toInt()        // near-black text on amber
+        PRIMARY_LIGHT = 0xFF1F2A28.toInt()     // dark teal tint — chip and icon-badge background
+        ON_PRIMARY_LIGHT = 0xFF4DD5BE.toInt()  // teal — label on dark-teal pill
+        BACKGROUND = 0xFF0B0F10.toInt()        // near-black with faint teal cast
+        CARD = 0xFF13181B.toInt()              // card body
+        CARD_ALT = 0xFF1A2024.toInt()          // inset / segmented bar / disabled tile
+        TEXT = 0xFFF2F3EE.toInt()
+        MUTED = 0xFF8A98A0.toInt()
+        DIVIDER = 0xFF242C32.toInt()           // 1dp card border
+        // Semantic colours for sheet-reading verdicts. Kept on-brand with amber/teal.
+        GREEN = 0xFF4DD5BE.toInt()             // "correct" / success → teal
+        RED = 0xFFF77E6B.toInt()               // "wrong" / warning → warm red
+        ORANGE = 0xFFF2B33D.toInt()            // "blank" / draft → amber (same hue as PRIMARY)
+        PURPLE = 0xFFB48BFF.toInt()            // "multiple"
+        BLUE = 0xFF6AA8FF.toInt()              // "unkeyed" / informational
+        GREEN_BG = 0xFF142623.toInt()
+        RED_BG = 0xFF2A1816.toInt()
+        ORANGE_BG = 0xFF2A2317.toInt()
+        PURPLE_BG = 0xFF1E1A2A.toInt()
     }
 
     /** Colour for a percentage: green ≥ 80, primary ≥ 60, orange ≥ 40, red below. */
@@ -483,14 +484,14 @@ fun Activity.snackbar(message: String, action: String? = null, onAction: (() -> 
     val content = findViewById<FrameLayout>(android.R.id.content) ?: return
     val bar = horizontal().apply {
         setPadding(dp(18), dp(12), dp(10), dp(12))
-        background = rounded(if (Ui.dark) 0xFFE9E9F5.toInt() else 0xFF22233A.toInt(), dp(14).toFloat())
+        background = rounded(Ui.CARD, dp(14).toFloat(), Ui.PRIMARY, dp(1))
         elevation = dp(6).toFloat()
     }
-    val fg = if (Ui.dark) 0xFF16172B.toInt() else Color.WHITE
-    bar.add(text(message, 14f, fg), weighted())
+    bar.add(ledDot(DotColor.OK), LinearLayout.LayoutParams(dp(8), dp(8)).apply { marginEnd = dp(10) })
+    bar.add(text(message, 14f, Ui.TEXT), weighted())
     val remove = Runnable { content.removeView(bar) }
     if (action != null && onAction != null) {
-        bar.add(text(action, 14f, if (Ui.dark) 0xFF4338CA.toInt() else 0xFFA5A3F5.toInt(), true).apply {
+        bar.add(text(action, 14f, Ui.PRIMARY, true).apply {
             setPadding(dp(12), dp(6), dp(12), dp(6))
             setOnClickListener { content.removeView(bar); onAction() }
         }, wrap())
@@ -578,4 +579,64 @@ fun Activity.processingScreen(title: String, steps: List<String>, subtitle: Stri
     val p = ProcessingSteps(rows, box)
     p.reach(0)
     return p to sub
+}
+
+// ---- Stitch "OMR_ENGINE" chrome -----------------------------------------------------------------
+
+/** Monospace label — for overlines, status strings, badges and version chips in the engineering look. */
+fun Context.monoText(s: CharSequence, sizeSp: Float = 12f, color: Int = Ui.TEXT_MUTED_OR, upper: Boolean = true) = TextView(this).apply {
+    text = if (upper) s.toString().uppercase() else s
+    textSize = sizeSp
+    setTextColor(color)
+    typeface = Typeface.MONOSPACE
+    if (upper) letterSpacing = 0.06f
+}
+
+/** Convenience passthroughs so `monoText` can default a muted colour before Ui.apply has run on fresh builds. */
+private val Ui.TEXT_MUTED_OR get() = if (MUTED != 0) MUTED else 0xFF8A98A0.toInt()
+
+/** A pulsing LED dot. Pass [DotColor.OK] (teal), [DotColor.BUSY] (amber) or [DotColor.ERR] (red). */
+enum class DotColor { OK, BUSY, ERR }
+
+fun Context.ledDot(color: DotColor = DotColor.OK, sizeDp: Int = 8): View {
+    val c = when (color) { DotColor.OK -> Ui.ON_PRIMARY_LIGHT; DotColor.BUSY -> Ui.PRIMARY; DotColor.ERR -> Ui.RED }
+    return View(this).apply {
+        background = rounded(c, dp(sizeDp / 2).toFloat())
+        layoutParams = LinearLayout.LayoutParams(dp(sizeDp), dp(sizeDp))
+        android.animation.ValueAnimator.ofFloat(0.5f, 1f, 0.5f).apply {
+            duration = 1600
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            addUpdateListener { alpha = it.animatedValue as Float }
+            start()
+        }
+    }
+}
+
+/** A `CORPUS STATUS // 18 PRESETS VERIFIED` tagline strip. */
+fun Context.statusStrip(label: String, dot: DotColor = DotColor.OK, trailing: String? = null): LinearLayout {
+    val row = horizontal().apply {
+        setPadding(dp(14), dp(10), dp(14), dp(10))
+        background = rounded(Ui.CARD, dp(12).toFloat(), Ui.DIVIDER, dp(1))
+    }
+    row.add(ledDot(dot), LinearLayout.LayoutParams(dp(8), dp(8)).apply { marginEnd = dp(10) })
+    row.add(monoText(label, 11.5f, Ui.TEXT), weighted())
+    if (trailing != null) row.add(monoText(trailing, 11.5f, Ui.ON_PRIMARY_LIGHT), wrap())
+    return row
+}
+
+/** Small `UPPER_SNAKE // STATE` version chip. */
+fun Context.monoChip(label: String, color: Int = Ui.ON_PRIMARY_LIGHT, bg: Int = Ui.PRIMARY_LIGHT) = monoText(label, 10.5f, color).apply {
+    setPadding(dp(8), dp(4), dp(8), dp(4))
+    background = rounded(bg, dp(6).toFloat())
+}
+
+/** Section header in the Stitch style: amber overline + big title. */
+fun Context.engineHeader(overline: String, title: String, trailing: View? = null): LinearLayout {
+    val box = vertical()
+    box.add(monoText(overline, 11.5f, Ui.PRIMARY), wrap().apply { bottomMargin = dp(4) })
+    val row = horizontal()
+    row.add(text(title, TextStyle.TITLE.sp + 2, Ui.TEXT, true).apply { letterSpacing = -0.02f }, weighted())
+    if (trailing != null) row.add(trailing, wrap())
+    box.add(row, block(0))
+    return box
 }

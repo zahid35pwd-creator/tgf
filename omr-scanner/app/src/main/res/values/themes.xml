@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Screens draw their own app bar; colours come from Ui tokens at runtime. -->
-    <style name="BaseTheme" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:colorPrimary">#4338CA</item>
-        <item name="android:colorPrimaryDark">#F6F6FB</item>
-        <item name="android:colorAccent">#4338CA</item>
+    <!-- Forced dark "OMR_ENGINE" studio theme. Screens draw their own app bar; colours come from Ui tokens at runtime. -->
+    <style name="BaseTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#F2B33D</item>
+        <item name="android:colorPrimaryDark">#0B0F10</item>
+        <item name="android:colorAccent">#4DD5BE</item>
         <item name="android:windowBackground">@color/background</item>
         <item name="android:windowContentTransitions">true</item>
     </style>
 
     <style name="AppTheme" parent="BaseTheme" />
 
-    <color name="background">#F6F6FB</color>
-    <color name="icon_background">#4338CA</color>
+    <color name="background">#0B0F10</color>
+    <color name="icon_background">#0B0F10</color>
 </resources>

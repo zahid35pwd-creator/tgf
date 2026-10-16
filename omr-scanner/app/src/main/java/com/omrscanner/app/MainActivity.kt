@@ -12,10 +12,14 @@ import android.widget.LinearLayout
 import com.omrscanner.app.ui.Icon
 import com.omrscanner.app.ui.IconDrawable
 
-/** The app's home: four tabs (Home, Answer key, Results, Settings) under a bottom navigation bar. */
+/** The app's home: five tabs (Templates, Keys, Scanner, Results, Settings) under a bottom navigation bar. */
 class MainActivity : BaseActivity() {
     enum class Tab(val label: String, val icon: Icon) {
-        HOME("Home", Icon.HOME), KEY("Answer key", Icon.KEY), RESULTS("Results", Icon.CHART), SETTINGS("Settings", Icon.SETTINGS)
+        HOME("Templates", Icon.FIDUCIAL),
+        KEY("Keys", Icon.KEY),
+        SCANNER("Scanner", Icon.SCAN),
+        RESULTS("Results", Icon.CHART),
+        SETTINGS("Settings", Icon.SETTINGS),
     }
 
     lateinit var store: Store
@@ -69,6 +73,7 @@ class MainActivity : BaseActivity() {
         val view = when (t) {
             Tab.HOME -> HomeTab(this).build()
             Tab.KEY -> KeyTab(this).build()
+            Tab.SCANNER -> ScannerTab(this).build()
             Tab.RESULTS -> ResultsTab(this).build()
             Tab.SETTINGS -> SettingsTab(this).build()
         }
@@ -96,11 +101,11 @@ class MainActivity : BaseActivity() {
                 setOnClickListener { if (t != tab) show(t) }
             }
             item.addView(ImageView(this).apply {
-                setImageDrawable(IconDrawable(t.icon, if (on) Ui.ON_PRIMARY_LIGHT else Ui.MUTED, dp(22)))
+                setImageDrawable(IconDrawable(t.icon, if (on) Ui.ON_PRIMARY else Ui.MUTED, dp(22)))
                 scaleType = ImageView.ScaleType.CENTER
-                background = if (on) rounded(Ui.PRIMARY_LIGHT, dp(16).toFloat()) else null
-            }, LinearLayout.LayoutParams(dp(60), dp(32)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(4) })
-            item.addView(text(t.label, 12f, if (on) Ui.TEXT else Ui.MUTED, on).apply { gravity = Gravity.CENTER }, wrap().apply { gravity = Gravity.CENTER_HORIZONTAL })
+                background = if (on) rounded(Ui.PRIMARY, dp(14).toFloat()) else null
+            }, LinearLayout.LayoutParams(dp(56), dp(30)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(4) })
+            item.addView(monoText(t.label, 10.5f, if (on) Ui.TEXT else Ui.MUTED).apply { gravity = Gravity.CENTER }, wrap().apply { gravity = Gravity.CENTER_HORIZONTAL })
             nav.addView(item, weighted())
         }
     }

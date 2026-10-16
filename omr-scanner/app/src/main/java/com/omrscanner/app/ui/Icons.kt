@@ -12,6 +12,7 @@ import android.graphics.drawable.Drawable
 enum class Icon {
     BACK, CHEVRON, CAMERA, GALLERY, PDF, KEY, SETTINGS, HISTORY, PRINT, ROTATE, FLIP, SHARE, CHECK, CROSS,
     HOME, SCAN, PLUS, TRASH, SEARCH, WORD, CSV, EDIT, INFO, SHEET, CHART, SAVE, WARNING, SPARK, TROPHY, NEXT, MORE,
+    FIDUCIAL, LOCK, SIGNAL, LOUPE, IMPORT, FILTER,
 }
 
 class IconDrawable(private val icon: Icon, color: Int, private val sizePx: Int) : Drawable() {
@@ -179,6 +180,40 @@ class IconDrawable(private val icon: Icon, color: Int, private val sizePx: Int) 
                 line(12f, 15f, 12f, 18f); line(8f, 20.5f, 16f, 20.5f); line(9f, 18f, 15f, 18f)
             }
             Icon.MORE -> { dot(12f, 5.5f, 1.7f); dot(12f, 12f, 1.7f); dot(12f, 18.5f, 1.7f) }
+            Icon.FIDUCIAL -> {
+                // Four L-shaped corner brackets — the app mark.
+                line(3f, 8f, 3f, 3f, 8f, 3f)
+                line(21f, 8f, 21f, 3f, 16f, 3f)
+                line(3f, 16f, 3f, 21f, 8f, 21f)
+                line(21f, 16f, 21f, 21f, 16f, 21f)
+                circle(12f, 12f, 2.4f)
+            }
+            Icon.LOCK -> {
+                arc(12f, 10f, 4f, 180f, 180f)
+                rrect(6f, 10f, 18f, 20.5f, 2f)
+                dot(12f, 15f, 1.4f)
+                line(12f, 15f, 12f, 17.5f)
+            }
+            Icon.SIGNAL -> {
+                // Four signal bars rising left-to-right.
+                drawRect(android.graphics.RectF(3.5f, 15.5f, 6.5f, 20.5f), fill)
+                drawRect(android.graphics.RectF(8f, 12f, 11f, 20.5f), fill)
+                drawRect(android.graphics.RectF(12.5f, 8.5f, 15.5f, 20.5f), fill)
+                drawRect(android.graphics.RectF(17f, 5f, 20f, 20.5f), fill)
+            }
+            Icon.LOUPE -> {
+                circle(10.5f, 10.5f, 6.5f)
+                line(15.5f, 15.5f, 20.5f, 20.5f)
+                line(7.5f, 10.5f, 13.5f, 10.5f); line(10.5f, 7.5f, 10.5f, 13.5f)
+            }
+            Icon.IMPORT -> {
+                line(12f, 3f, 12f, 15f); line(7.5f, 10.5f, 12f, 15f, 16.5f, 10.5f)
+                line(4.5f, 17.5f, 4.5f, 20.5f, 19.5f, 20.5f, 19.5f, 17.5f)
+            }
+            Icon.FILTER -> {
+                line(3f, 5.5f, 21f, 5.5f); line(6f, 12f, 18f, 12f); line(9.5f, 18.5f, 14.5f, 18.5f)
+                dot(16f, 5.5f, 1.6f); dot(13.5f, 12f, 1.6f); dot(10.5f, 18.5f, 1.6f)
+            }
         }
     }
 
