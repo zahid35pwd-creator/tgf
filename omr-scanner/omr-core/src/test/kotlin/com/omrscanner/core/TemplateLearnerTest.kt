@@ -18,6 +18,36 @@ class TemplateLearnerTest {
     private fun ownBlank(): BufferedImage =
         SyntheticSheets.render(FilledSheet(SheetSpec(100, 4), emptyList(), emptyList()), 8.0, Random(0), handwriting = false)
 
+    private fun grid(width: Int, height: Int): Pair<List<List<Pt>>, List<List<Pt>>> {
+        // A rectangular grid of [width] columns × [height] rows at unit spacing, used only by classify.
+        val rows = List(height) { r -> List(width) { c -> Pt(c * 1.0, r * 1.0) } }
+        val cols = List(width) { c -> List(height) { r -> Pt(c * 1.0, r * 1.0) } }
+        return rows to cols
+    }
+
+    @Test
+    fun classifiesEveryKindOfField() {
+        val learner = TemplateLearner
+        fun check(width: Int, height: Int, expected: GroupKind) {
+            val (rows, cols) = grid(width, height)
+            val got = learner.classifyForTest(rows, cols)
+            assertEquals(expected, got, "grid ${width}×${height} ($height rows × $width options)")
+        }
+        // ID / Roll / Registration — 10 rows per column, every width is a digit field.
+        for (digits in 2..10) check(digits, 10, GroupKind.NUMBER)
+        // Name A–Z grid.
+        check(6, 26, GroupKind.NAME)
+        check(10, 26, GroupKind.NAME)
+        check(4, 26, GroupKind.NAME)
+        // Short choice codes (set).
+        check(4, 1, GroupKind.LETTERS)
+        check(1, 4, GroupKind.LETTERS)
+        // Answer grids: many rows of 2–5 options.
+        check(4, 25, GroupKind.ANSWERS)
+        check(5, 20, GroupKind.ANSWERS)
+        check(4, 50, GroupKind.ANSWERS)
+    }
+
     private fun learn(img: BufferedImage, label: String): LearnedSheet {
         val l = TemplateLearner.learn(SyntheticSheets.toArgb(img))
         println("$label: ${l.alignment}, page ${l.pageWidth}x${l.pageHeight}, ink ${l.inkMode}, markers ${l.markerCenters}, marks ${l.orientationMarks.size}")

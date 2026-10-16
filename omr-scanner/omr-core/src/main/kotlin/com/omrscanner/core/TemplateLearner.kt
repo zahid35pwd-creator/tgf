@@ -445,13 +445,25 @@ object TemplateLearner {
         return hits >= 18 && ring / 24 > 0.35
     }
 
+    /**
+     * Non-answer fields (Roll, Registration, ID, Set, Class, Name…) are read column by column:
+     *  - NUMBER: each column is a stack of exactly 10 bubbles labelled 0..9 — the darkest is the digit.
+     *  - NAME:   each column is a stack of 24–27 bubbles labelled A..Z — the darkest is the letter.
+     *  - LETTERS: a short choice group (a set code, true/false, …) read as 2–5 options per column, or as
+     *             a single row of 2–5 options when the sheet prints them horizontally.
+     * ANSWERS are the main question grid: multiple rows of 2–6 options each.
+     */
+    internal fun classifyForTest(rows: List<List<Pt>>, cols: List<List<Pt>>) = classify(rows, cols)
+
     private fun classify(rows: List<List<Pt>>, cols: List<List<Pt>>): GroupKind {
         val tallest = cols.maxOf { it.size }
         val widest = rows.maxOf { it.size }
         return when {
             rows.size == 1 && widest in 2..5 -> GroupKind.LETTERS // e.g. a set code printed across: ক খ গ ঘ
-            tallest in 24..27 && widest >= 6 -> GroupKind.NAME // a column per letter, A–Z
-            tallest == 10 && widest !in 4..5 -> GroupKind.NUMBER
+            tallest in 25..27 && widest >= 6 -> GroupKind.NAME     // A–Z column per letter, several letters wide
+            // Any group whose columns each hold exactly 10 bubbles is a digit field, whatever its width:
+            // a 4- to 6-digit roll (10 × 4..6) was previously stolen by the answers rule below.
+            tallest == 10 && rows.size == 10 -> GroupKind.NUMBER
             cols.size == 1 && tallest in 2..5 -> GroupKind.LETTERS
             widest in 2..6 && rows.size >= 2 -> GroupKind.ANSWERS
             tallest == 10 -> GroupKind.NUMBER

@@ -174,8 +174,7 @@ class ResultsTab(private val a: MainActivity) {
             val tiles = horizontal()
             tiles.add(statTile("${r.correct}", "Correct", Ui.GREEN, Ui.GREEN_BG), weighted().apply { marginEnd = dp(6) })
             tiles.add(statTile("${r.wrong}", "Wrong", Ui.RED, Ui.RED_BG), weighted().apply { marginEnd = dp(6) })
-            tiles.add(statTile("${r.blank}", "Blank", Ui.ORANGE, Ui.ORANGE_BG), weighted().apply { marginEnd = dp(6) })
-            tiles.add(statTile("${r.multiple}", "Multiple", Ui.PURPLE, Ui.PURPLE_BG), weighted())
+            tiles.add(statTile("${r.blank}", "Blank", Ui.ORANGE, Ui.ORANGE_BG), weighted())
             col.add(tiles, block(14))
             val meta = listOf(r.exam, DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(r.time))).filter { it.isNotBlank() }
             col.add(text(meta.joinToString(" · "), TextStyle.CAPTION, Ui.MUTED), block(10))

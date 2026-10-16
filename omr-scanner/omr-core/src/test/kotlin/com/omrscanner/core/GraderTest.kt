@@ -8,16 +8,17 @@ class GraderTest {
 
     @Test
     fun gradesWithNegativeMarking() {
+        // 5 questions: right / wrong / blank / several marks / no key.
         val answers = listOf(reading(0, 1), reading(1, 2), reading(2), reading(3, 0, 3), reading(4, 2))
         val key = listOf(1, 0, 3, 3, null)
         val g = Grader.grade(answers, key, Marking(perCorrect = 1.0, perWrong = 0.25))
-        assertEquals(listOf(Verdict.CORRECT, Verdict.WRONG, Verdict.BLANK, Verdict.MULTIPLE, Verdict.UNKEYED), g.questions.map { it.verdict })
+        // Several marks is scored as wrong (same as marking the wrong option) — no separate verdict.
+        assertEquals(listOf(Verdict.CORRECT, Verdict.WRONG, Verdict.BLANK, Verdict.WRONG, Verdict.UNKEYED), g.questions.map { it.verdict })
         assertEquals(1.0 - 0.25 - 0.25, g.score, 1e-9)
         assertEquals(4.0, g.maxScore, 1e-9)
         assertEquals(1, g.correct)
-        assertEquals(1, g.wrong)
+        assertEquals(2, g.wrong)
         assertEquals(1, g.blank)
-        assertEquals(1, g.multiple)
     }
 
     @Test

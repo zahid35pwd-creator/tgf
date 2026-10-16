@@ -37,7 +37,9 @@ object Grader {
             val verdict = when {
                 k == null -> Verdict.UNKEYED
                 a.status == MarkStatus.BLANK -> Verdict.BLANK
-                a.status == MarkStatus.MULTIPLE -> Verdict.MULTIPLE
+                // Several bubbles filled on one question is scored as a wrong answer, same as marking the
+                // wrong option. The MULTIPLE verdict is kept only for the sheet image overlay (purple ring).
+                a.status == MarkStatus.MULTIPLE -> Verdict.WRONG
                 a.answer == k -> Verdict.CORRECT
                 else -> Verdict.WRONG
             }

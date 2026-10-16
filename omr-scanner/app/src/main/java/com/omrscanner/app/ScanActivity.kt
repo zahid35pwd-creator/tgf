@@ -197,8 +197,7 @@ class ScanActivity : BaseActivity() {
             val tiles = horizontal()
             tiles.add(statTile("${grade.correct}", "Correct", Ui.GREEN, Ui.GREEN_BG), weighted().apply { marginEnd = dp(8) })
             tiles.add(statTile("${grade.wrong}", "Wrong", Ui.RED, Ui.RED_BG), weighted().apply { marginEnd = dp(8) })
-            tiles.add(statTile("${grade.blank}", "Blank", Ui.ORANGE, Ui.ORANGE_BG), weighted().apply { marginEnd = dp(8) })
-            tiles.add(statTile("${grade.multiple}", "Multiple", Ui.PURPLE, Ui.PURPLE_BG), weighted())
+            tiles.add(statTile("${grade.blank}", "Blank", Ui.ORANGE, Ui.ORANGE_BG), weighted())
             page.add(tiles, block(12))
         }
         val review = result.answers.count { it.needsReview }
