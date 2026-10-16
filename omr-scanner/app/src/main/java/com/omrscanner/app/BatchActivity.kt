@@ -84,6 +84,9 @@ class BatchActivity : BaseActivity() {
         val footer = footerBar(button("Cancel", ButtonStyle.OUTLINE, Icon.CROSS) { cancelled = true })
         page = scrollingPage("Checking sheets", back = false, footer = footer)
         sourceName = fileName(uri)?.substringBeforeLast('.') ?: "OMR results"
+        val strip = statusStrip("CHECKING  //  OPENING PDF", DotColor.BUSY)
+        page.add(strip, block(12))
+        val stripText = strip.getChildAt(1) as android.widget.TextView
 
         val top = card(18)
         val row = horizontal()
@@ -115,6 +118,7 @@ class BatchActivity : BaseActivity() {
                             ring.label = "${i + 1}/$n"
                             ring.setProgress(i.toFloat() / n)
                             status.text = "Reading page ${i + 1} of $n"
+                            stripText.text = "CHECKING  //  PAGE ${i + 1} OF $n"
                         }
                         val image = pdf.openPage(i).use { p ->
                             // About 2000 px on the long side: plenty for the reader, modest on memory.
@@ -181,6 +185,7 @@ class BatchActivity : BaseActivity() {
         )
         page = scrollingPage("Report ready", footer = footer)
         val read = entries.count { it.error == null }
+        page.add(statusStrip("REPORT READY  //  $read / ${entries.size} READ", if (read == entries.size) DotColor.OK else DotColor.BUSY), block(12))
         val graded = entries.mapNotNull { it.grade }
 
         val top = card(18)

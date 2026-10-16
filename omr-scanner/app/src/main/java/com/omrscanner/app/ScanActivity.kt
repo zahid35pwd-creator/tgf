@@ -95,6 +95,7 @@ class ScanActivity : BaseActivity() {
             button("Retake", ButtonStyle.PRIMARY, Icon.CAMERA) { ImageSources.openCamera(this) },
         )
         val page = scrollingPage("Couldn't read the sheet", footer = footer)
+        page.add(statusStrip("READ FAILED  //  ${settings.template.name}", DotColor.ERR), block(8))
         val top = vertical().apply { gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, dp(16), 0, dp(20)) }
         top.add(iconBadge(Icon.WARNING, Ui.RED, Ui.RED_BG, 88, 40), LinearLayout.LayoutParams(dp(88), dp(88)).apply { bottomMargin = dp(16) })
         top.add(text(message, TextStyle.HEADING).apply { gravity = Gravity.CENTER }, wrap())
@@ -127,6 +128,11 @@ class ScanActivity : BaseActivity() {
         }
         val gallery = iconButton(Icon.GALLERY) { ImageSources.openGallery(this) }
         val page = scrollingPage(if (keyMode) "Answer key" else "Result", footer = footer, actions = *arrayOf(gallery))
+        page.add(when {
+            keyMode -> statusStrip("KEY SHEET READ  //  ${settings.template.name}", DotColor.OK)
+            grade != null -> statusStrip("SHEET READ  //  ${settings.template.name}", DotColor.OK)
+            else -> statusStrip("NO ANSWER KEY  //  ${settings.template.name}", DotColor.BUSY)
+        }, block(12))
 
         when {
             keyMode -> page.add(keyHero(result), block(12))
@@ -323,7 +329,7 @@ class ScanActivity : BaseActivity() {
             gravity = Gravity.CENTER
             setPadding(0, dp(7), 0, dp(7))
             val r = dp(12).toFloat()
-            background = ripple(rounded(bg, r, if (a.needsReview) Ui.ORANGE else 0, if (a.needsReview) dp(1.5f) else 0), r)
+            background = ripple(rounded(bg, r, if (a.needsReview) Ui.ORANGE else Ui.DIVIDER, if (a.needsReview) dp(1.5f) else dp(1)), r)
             setOnClickListener { questionSheet(a, grade) }
         }
         box.add(text("${a.question + 1}", 11f, Ui.MUTED).apply { gravity = Gravity.CENTER }, wrap().apply { gravity = Gravity.CENTER_HORIZONTAL })

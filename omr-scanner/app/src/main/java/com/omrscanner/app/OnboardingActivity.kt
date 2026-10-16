@@ -16,12 +16,14 @@ class OnboardingActivity : BaseActivity() {
     private class Page(val icon: Icon, val tint: () -> Int, val bg: () -> Int, val title: String, val body: String)
 
     private val pages = listOf(
-        Page(Icon.SCAN, { Ui.PRIMARY }, { Ui.PRIMARY_LIGHT }, "Scan any OMR sheet",
-            "Take a photo or pick a scan. Works with this app's sheet, BCS and SSC/HSC sheets, and any sheet you teach it."),
-        Page(Icon.KEY, { Ui.GREEN }, { Ui.GREEN_BG }, "Set your answer key",
-            "Tap in the right answers, paste them, or simply scan a sheet filled with the correct answers. One key per set if you like."),
-        Page(Icon.CHART, { Ui.PURPLE }, { Ui.PURPLE_BG }, "Results & Word reports",
-            "See every sheet's score instantly, keep results, and turn a whole PDF of sheets into a Word report sorted by roll."),
+        Page(Icon.HOME, { Ui.ON_PRIMARY }, { Ui.PRIMARY }, "1 · Choose your OMR sheet",
+            "On Home, pick a ready-made sheet if yours is exactly the same — or add any other sheet from a blank copy."),
+        Page(Icon.KEY, { Ui.ON_PRIMARY_LIGHT }, { Ui.PRIMARY_LIGHT }, "2 · Set the answer key",
+            "On Key, scan a sheet filled with the right answers (camera, photo or PDF), or type / tap them. One key per set if you like."),
+        Page(Icon.SCAN, { Ui.ON_PRIMARY }, { Ui.PRIMARY }, "3 · Scan the sheets",
+            "On Scanner, use the camera, a photo or a PDF. A PDF with many pages becomes one report."),
+        Page(Icon.CHART, { Ui.ON_PRIMARY_LIGHT }, { Ui.PRIMARY_LIGHT }, "4 · See results",
+            "On Results, every exam with its scores — export to Word, Excel or PDF."),
     )
     private var index = 0
     private lateinit var holder: FrameLayout

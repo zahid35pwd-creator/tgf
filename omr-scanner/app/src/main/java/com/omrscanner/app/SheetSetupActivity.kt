@@ -67,7 +67,8 @@ class SheetSetupActivity : BaseActivity() {
     }
 
     private fun showIntro() {
-        val page = scrollingPage("Add a sheet type")
+        val page = scrollingPage("Add OMR sheet")
+        page.add(monoText("STEP 1 / 3  //  CHOOSE FILE", 11.5f, Ui.PRIMARY).apply { setPadding(dp(4), 0, 0, dp(8)) }, wrap())
         page.add(stepper(0), block(18))
         val hero = vertical().apply { gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, dp(4), 0, dp(18)) }
         hero.add(iconBadge(Icon.SPARK, Ui.PRIMARY, Ui.PRIMARY_LIGHT, 80, 36), LinearLayout.LayoutParams(dp(80), dp(80)).apply { bottomMargin = dp(14) })
@@ -154,8 +155,9 @@ class SheetSetupActivity : BaseActivity() {
         val l = learned ?: return
         val page = scrollingPage("Check the sheet", footer = footerBar(
             button("Start again", ButtonStyle.SECONDARY) { showIntro() },
-            button("Save type", ButtonStyle.PRIMARY, Icon.CHECK) { save() },
+            button("Save sheet", ButtonStyle.PRIMARY, Icon.CHECK) { save() },
         ))
+        page.add(monoText("STEP 2 / 3  //  CHECK & NAME", 11.5f, Ui.PRIMARY).apply { setPadding(dp(4), 0, 0, dp(8)) }, wrap())
         page.add(stepper(1), block(16))
 
         val questions = l.groups.filter { it.kind == GroupKind.ANSWERS }.sumOf { it.rows.size }
@@ -165,6 +167,8 @@ class SheetSetupActivity : BaseActivity() {
         tiles.add(statTile("$numbers", "ID fields", Ui.GREEN, Ui.GREEN_BG), weighted().apply { marginEnd = dp(8) })
         tiles.add(statTile(if (l.alignment == Alignment.MARKERS) "4" else "—", "Corner marks", Ui.PURPLE, Ui.PURPLE_BG), weighted())
         page.add(tiles, block(12))
+        page.add(statusStrip("$questions QUESTIONS  //  $numbers ID FIELDS  //  CORNER MARKS: ${if (l.alignment == Alignment.MARKERS) "4" else "—"}",
+            if (l.alignment == Alignment.MARKERS) DotColor.OK else DotColor.BUSY), block(12))
         val notes = listOfNotNull(
             if (l.alignment == Alignment.MARKERS) null else "No corner squares: filled sheets are lined up by the page edges, so photograph them on a darker surface.",
             if (l.inkMode != InkMode.LUMINANCE) "The print is coloured, so it is ignored when reading marks." else null,
