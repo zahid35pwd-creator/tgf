@@ -150,10 +150,21 @@ class MainActivity : BaseActivity() {
         startActivity(Intent.createChooser(send, "Share app"))
     }
 
-    private fun about() = bottomSheet("About") { col, _ ->
+    private fun about() = bottomSheet("About") { col, d ->
         val version = try { packageManager.getPackageInfo(packageName, 0).versionName } catch (e: Exception) { "" }
-        col.add(text("OMR Scanner $version", TextStyle.HEADING), block(6))
-        col.add(text("Reads OMR answer sheets from a photo or PDF and grades them on your phone. Works offline; nothing is uploaded.", TextStyle.BODY, Ui.MUTED), block(0))
+        col.add(text("OMR Scanner", TextStyle.HEADING), block(2))
+        col.add(text("Version $version", TextStyle.BODY, Ui.MUTED), block(12))
+        col.add(text("Check OMR answer sheets with your phone camera or a PDF and get marks, reports and result images in seconds.", TextStyle.BODY, Ui.MUTED), block(16))
+        col.add(text("What it does", TextStyle.LABEL, Ui.MUTED), block(8))
+        for (line in listOf(
+            "Reads answers and ID, roll, set and name fields",
+            "Grades against your teacher's answer sheet, with negative marking",
+            "Learns new OMR layouts from a blank sheet",
+            "Exports Word, PDF and CSV reports",
+        )) col.add(text("•  $line", TextStyle.BODY), block(4))
+        col.add(text("Privacy", TextStyle.LABEL, Ui.MUTED), block(8).apply { topMargin = dp(12) })
+        col.add(text("Works fully offline. Sheets, keys and results stay on this phone; nothing is uploaded.", TextStyle.BODY, Ui.MUTED), block(16))
+        col.add(listRow(Icon.SHARE, "Share app", "Send the download link to other teachers") { d.dismiss(); shareApp() }, block(0))
     }
 
     // ---- Pictures ----------------------------------------------------------------------------
