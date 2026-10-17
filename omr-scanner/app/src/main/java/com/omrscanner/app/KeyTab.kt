@@ -76,7 +76,21 @@ class KeyTab(private val a: MainActivity) {
     }
 
     private fun setChips(): View? = with(a) {
-        val field = settings.template.let { it.field(it.setField) } ?: return null
+        val t = settings.template
+        val field = t.field(t.setField)
+        if (field == null) {
+            // No Set field yet. For user-added sheets, let them pick a short letter field as the Set.
+            if (!t.custom) return null
+            val candidates = t.fields.filter { it.labels.size in 2..6 }
+            if (candidates.isEmpty()) return null
+            val link = text("＋ Add a Set field (ক খ গ ঘ, A B C D, …)", 13.5f, Ui.PRIMARY, true).apply {
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                val r = dp(14).toFloat()
+                background = ripple(rounded(Ui.CARD, r, Ui.DIVIDER, dp(1)), r)
+                setOnClickListener { pickSetField(candidates) }
+            }
+            return link
+        }
         val box = vertical()
         box.add(text("Question set — enter a separate key for each set, or one key for all", 13f, Ui.MUTED).apply { setPadding(dp(4), 0, 0, dp(8)) }, wrap())
         val row = horizontal()
@@ -87,7 +101,35 @@ class KeyTab(private val a: MainActivity) {
             row.add(choiceChip(label, v == keySet) { keySet = v; refresh() }, wrap().apply { marginEnd = dp(8) })
         }
         box.add(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(row) }, block(0))
+        if (t.custom) {
+            val remove = text("Remove Set field", 12.5f, Ui.MUTED).apply {
+                setPadding(dp(4), dp(10), dp(4), 0)
+                setOnClickListener { saveSetField(null) }
+            }
+            box.add(remove, wrap())
+        }
         box
+    }
+
+    private fun pickSetField(candidates: List<com.omrscanner.core.DigitField>) = a.bottomSheet("Pick the Set field") { col, d ->
+        with(a) {
+            col.add(text("Choose which short letter field on your sheet is the question set code (e.g. Set ক/খ/গ/ঘ).", TextStyle.CAPTION, Ui.MUTED), block(12))
+            for (f in candidates) {
+                col.add(listRow(com.omrscanner.app.ui.Icon.KEY, f.name, f.labels.joinToString(" · ")) {
+                    d.dismiss()
+                    saveSetField(f.name)
+                }, block(0))
+            }
+        }
+    }
+
+    private fun saveSetField(name: String?) {
+        val t = settings.template
+        val updated = t.withSetField(name)
+        a.store.addTemplate(updated)
+        a.store.settings = a.store.settings.copy(template = updated)
+        a.keySet = null
+        a.refresh()
     }
 
     private fun questionRow(q: Int): View = with(a) {

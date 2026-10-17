@@ -156,7 +156,7 @@ class SheetSetupActivity : BaseActivity() {
         // Keep the user where they were (tap on a block in the middle of the list, etc.) across rebuilds.
         val savedY = findScroll(window.decorView)?.scrollY ?: 0
         val page = scrollingPage("Check the sheet", footer = footerBar(
-            button("Start again", ButtonStyle.SECONDARY) { showIntro() },
+            button("Something's missing", ButtonStyle.SECONDARY) { showIntro() },
             button("Save sheet", ButtonStyle.PRIMARY, Icon.CHECK) { save() },
         ))
         page.add(monoText("STEP 2 / 3  //  CHECK & NAME", 11.5f, Ui.PRIMARY).apply { setPadding(dp(4), 0, 0, dp(8)) }, wrap())
@@ -176,6 +176,7 @@ class SheetSetupActivity : BaseActivity() {
             if (l.inkMode != InkMode.LUMINANCE) "The print is coloured, so it is ignored when reading marks." else null,
         )
         if (notes.isNotEmpty()) page.add(banner(notes.joinToString(" ")), block(12))
+        page.add(banner("Check every question row and every ID column is coloured below. If some are missing, tap \"Something's missing\" and retake with better light, less tilt and all four corner squares in the frame."), block(12))
 
         val (nameBox, nameField) = inputField("Name of this sheet type", name, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
         nameField.addTextChangedListener(object : TextWatcher {

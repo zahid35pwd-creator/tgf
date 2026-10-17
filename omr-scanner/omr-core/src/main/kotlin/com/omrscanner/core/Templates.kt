@@ -88,6 +88,13 @@ class SheetTemplate(
 
     fun field(name: String?) = fields.firstOrNull { it.name == name }
 
+    /** A copy of this template with [setField] changed (useful when the user picks a Set field after setup). */
+    fun withSetField(newSetField: String?) = SheetTemplate(
+        id, name, markerCenters, markerSize, questions, answerRadius, answerBlocks, fields,
+        idField, newSetField, orientationMarks, inkMode, printable, optionLabels,
+        alignment, pageWidth, pageHeight, custom,
+    )
+
     /** Page corners clockwise from top-left: the "markers" when [alignment] is [Alignment.PAGE_EDGES]. */
     val pageCorners get() = listOf(Pt(0.0, 0.0), Pt(pageWidth, 0.0), Pt(pageWidth, pageHeight), Pt(0.0, pageHeight))
 

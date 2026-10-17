@@ -216,9 +216,15 @@ class HomeTab(private val a: MainActivity) {
             snackbar("Selected \"${t.name}\"")
         }
         c.background = ripple(rounded(if (on) Ui.PRIMARY_LIGHT else Ui.CARD, r, if (on) Ui.PRIMARY else Ui.DIVIDER, dp(if (on) 1.5f else 1f)), r)
-        val row = horizontal()
-        row.add(iconBadge(Icon.SHEET, if (on) Ui.ON_PRIMARY else Ui.PRIMARY, if (on) Ui.PRIMARY else Ui.CARD_ALT, 44, 22),
-            LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(14) })
+        val row = horizontal().apply { gravity = android.view.Gravity.CENTER_VERTICAL }
+        val thumbW = dp(44)
+        val thumbH = (thumbW * t.pageHeight / t.pageWidth).toInt()
+        val thumb = ImageView(this).apply {
+            setImageBitmap(TemplateThumbnail.get(t, thumbW))
+            background = rounded(Ui.CARD_ALT, dp(6).toFloat(), if (on) Ui.PRIMARY else Ui.DIVIDER, dp(1f))
+            scaleType = ImageView.ScaleType.FIT_CENTER
+        }
+        row.add(thumb, LinearLayout.LayoutParams(thumbW, thumbH).apply { marginEnd = dp(14) })
         val texts = vertical()
         texts.add(text(t.name, 15f, Ui.TEXT, true), wrap())
         val details = listOf("${t.maxQuestions} questions", if (t.custom) "added by you" else "ready-made") + t.fields.map { it.name }.take(2)
