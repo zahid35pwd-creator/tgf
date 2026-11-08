@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sweet Match</title>
+<style>
+  :root { --size: min(88vw, 480px); --gap: 4px; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 14px; font-family: system-ui, sans-serif;
+    background: linear-gradient(160deg, #ffd1e8, #c9b6ff); color: #3a1c5c;
+    user-select: none; -webkit-user-select: none;
+  }
+  h1 { margin: 0; font-size: 1.8rem; }
+  #hud { display: flex; gap: 12px; }
+  .stat { background: #fff8; padding: 6px 16px; border-radius: 12px; text-align: center; min-width: 90px; }
+  .stat b { display: block; font-size: 1.4rem; }
+  #board {
+    position: relative; width: var(--size); height: var(--size); padding: var(--gap);
+    background: #fff6; border-radius: 16px; touch-action: none;
+  }
+  .tile {
+    position: absolute; border-radius: 28%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--size) / 8 * 0.6);
+    transition: transform .18s ease, opacity .18s ease;
+    box-shadow: inset 0 -4px 0 #0003, 0 2px 4px #0003;
+  }
+  .tile.sel { outline: 4px solid #fff; z-index: 2; }
+  .tile.pop { opacity: 0; transform: scale(.2) !important; }
+  button {
+    font: inherit; font-weight: 700; padding: 10px 22px; border: 0; border-radius: 999px;
+    background: #7a3cff; color: #fff; cursor: pointer;
+  }
+  #msg { min-height: 1.4em; font-weight: 700; }
+</style>
+</head>
+<body>
+  <h1>Sweet Match</h1>
+  <div id="hud">
+    <div class="stat">Score<b id="score">0</b></div>
+    <div class="stat">Moves<b id="moves">0</b></div>
+    <div class="stat">Best<b id="best">0</b></div>
+  </div>
+  <div id="board"></div>
+  <div id="msg"></div>
+  <button id="restart">New game</button>
+
+<script>
+const N = 8, TYPES = 6, START_MOVES = 25;
+const ICONS = ['🍓', '🍊', '🍋', '🍏', '🫐', '🍇'];
+const COLORS = ['#ff6b8b', '#ffa94d', '#ffe066', '#8ce99a', '#74c0fc', '#b197fc'];
+
+const boardEl = document.getElementById('board');
+const $ = id => document.getElementById(id);
+let grid, tiles, score, moves, selected, busy, best = 0;
+try { best = +localStorage.getItem('sweetmatch-best') || 0; } catch (e) {}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rnd = () => Math.floor(Math.random() * TYPES);
+
+// ---- pure game logic -------------------------------------------------------
+function findMatches(g) {
+  const hit = new Set();
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const v = g[r][c]; if (v < 0) continue;
+    if (c + 2 < N && g[r][c + 1] === v && g[r][c + 2] === v) [0, 1, 2].forEach(i => hit.add(r * N + c + i));
+    if (r + 2 < N && g[r + 1][c] === v && g[r + 2][c] === v) [0, 1, 2].forEach(i => hit.add((r + i) * N + c));
+  }
+  return hit;
+}
+function swapCells(g, a, b) {
+  [g[a.r][a.c], g[b.r][b.c]] = [g[b.r][b.c], g[a.r][a.c]];
+}
+function hasMove(g) {
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++)
+    for (const [dr, dc] of [[0, 1], [1, 0]]) {
+      const r2 = r + dr, c2 = c + dc; if (r2 >= N || c2 >= N) continue;
+      swapCells(g, { r, c }, { r: r2, c: c2 });
+      const ok = findMatches(g).size > 0;
+      swapCells(g, { r, c }, { r: r2, c: c2 });
+      if (ok) return true;
+    }
+  return false;
+}
+function newGrid() {
+  do {
+    const g = Array.from({ length: N }, () => Array(N).fill(-1));
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      let v; do { v = rnd(); } while (
+        (c >= 2 && g[r][c - 1] === v && g[r][c - 2] === v) ||
+        (r >= 2 && g[r - 1][c] === v && g[r - 2][c] === v));
+      g[r][c] = v;
+    }
+    if (hasMove(g)) return g;
+  } while (true);
+}
+
+// ---- rendering -------------------------------------------------------------
+function cellPx() { return (boardEl.clientWidth - 8) / N; }
+function place(t, r, c) {
+  const s = cellPx(), gap = 2;
+  t.el.style.width = t.el.style.height = (s - gap * 2) + 'px';
+  t.el.style.transform = `translate(${c * s + gap + 4}px, ${r * s + gap + 4}px)`;
+  t.r = r; t.c = c;
+}
+function makeTile(v, r, c, fromRow) {
+  const el = document.createElement('div');
+  el.className = 'tile';
+  el.textContent = ICONS[v];
+  el.style.background = COLORS[v];
+  const t = { el, v, r, c };
+  el.addEventListener('pointerdown', e => onDown(e, t));
+  boardEl.appendChild(el);
+  if (fromRow !== undefined) { el.style.transition = 'none'; place(t, fromRow, c); el.offsetWidth; el.style.transition = ''; }
+  place(t, r, c);
+  return t;
+}
+function build() {
+  boardEl.innerHTML = '';
+  tiles = Array.from({ length: N }, () => Array(N).fill(null));
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) tiles[r][c] = makeTile(grid[r][c], r, c);
+}
+function hud() {
+  $('score').textContent = score; $('moves').textContent = moves; $('best').textContent = best;
+}
+
+// ---- input -----------------------------------------------------------------
+let drag = null;
+function onDown(e, t) {
+  if (busy) return;
+  drag = { t, x: e.clientX, y: e.clientY };
+  if (selected && selected !== t) {
+    const d = Math.abs(selected.r - t.r) + Math.abs(selected.c - t.c);
+    if (d === 1) { const s = selected; setSel(null); drag = null; return trySwap(s, t); }
+  }
+  setSel(selected === t ? null : t);
+}
+window.addEventListener('pointermove', e => {
+  if (!drag || busy) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < cellPx() * 0.35) return;
+  const [dr, dc] = Math.abs(dx) > Math.abs(dy) ? [0, Math.sign(dx)] : [Math.sign(dy), 0];
+  const a = drag.t, r = a.r + dr, c = a.c + dc;
+  drag = null;
+  if (r < 0 || c < 0 || r >= N || c >= N) return;
+  setSel(null);
+  trySwap(a, tiles[r][c]);
+});
+window.addEventListener('pointerup', () => { drag = null; });
+function setSel(t) {
+  if (selected) selected.el.classList.remove('sel');
+  selected = t; if (t) t.el.classList.add('sel');
+}
+
+// ---- game flow -------------------------------------------------------------
+function swapTiles(a, b) {
+  swapCells(grid, a, b);
+  tiles[a.r][a.c] = b; tiles[b.r][b.c] = a;
+  const ar = a.r, ac = a.c;
+  place(a, b.r, b.c); place(b, ar, ac);
+}
+async function trySwap(a, b) {
+  busy = true; $('msg').textContent = '';
+  swapTiles(a, b); await sleep(200);
+  if (findMatches(grid).size === 0) {
+    swapTiles(a, b); await sleep(200); busy = false; return;   // invalid move: swap back
+  }
+  moves--; hud();
+  await resolve();
+  if (!hasMove(grid)) { await shuffle(); }
+  if (moves <= 0) return gameOver();
+  busy = false;
+}
+async function resolve() {
+  let combo = 0;
+  for (let m = findMatches(grid); m.size; m = findMatches(grid)) {
+    combo++;
+    score += m.size * 10 * combo + Math.max(0, m.size - 3) * 20;
+    hud();
+    m.forEach(i => { const r = Math.floor(i / N), c = i % N; tiles[r][c].el.classList.add('pop'); });
+    await sleep(220);
+    m.forEach(i => { const r = Math.floor(i / N), c = i % N; tiles[r][c].el.remove(); tiles[r][c] = null; grid[r][c] = -1; });
+    // gravity
+    for (let c = 0; c < N; c++) {
+      let w = N - 1;
+      for (let r = N - 1; r >= 0; r--) if (grid[r][c] >= 0) {
+        if (w !== r) { grid[w][c] = grid[r][c]; grid[r][c] = -1; tiles[w][c] = tiles[r][c]; tiles[r][c] = null; place(tiles[w][c], w, c); }
+        w--;
+      }
+      // refill
+      for (let r = w, k = 1; r >= 0; r--, k++) {
+        const v = rnd(); grid[r][c] = v; tiles[r][c] = makeTile(v, r, c, -k);
+      }
+    }
+    await sleep(260);
+  }
+  if (combo > 1) $('msg').textContent = `Combo x${combo}!`;
+}
+async function shuffle() {
+  $('msg').textContent = 'No moves left — shuffling!';
+  grid = newGrid(); await sleep(400); build();
+}
+function gameOver() {
+  if (score > best) { best = score; try { localStorage.setItem('sweetmatch-best', best); } catch (e) {} }
+  hud(); $('msg').textContent = `Game over — final score ${score}`;
+  busy = true;
+}
+function start() {
+  grid = newGrid(); score = 0; moves = START_MOVES; selected = null; busy = false;
+  $('msg').textContent = ''; build(); hud();
+}
+$('restart').onclick = start;
+window.addEventListener('resize', () => tiles && tiles.forEach(row => row.forEach(t => t && place(t, t.r, t.c))));
+start();
+</script>
+</body>
+</html>
