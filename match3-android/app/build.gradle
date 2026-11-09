@@ -1,0 +1,21 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.sweetmatch.game'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.sweetmatch.game'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+    buildTypes { release { minifyEnabled false } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    sourceSets { main { assets.srcDirs = ["$buildDir/web-assets"] } }
+}
+// Bundle the web game (without the heavy 3D source models) into the APK.
+tasks.register('copyWeb', Copy) {
+    from("$rootDir/../match3") { exclude 'assets/models/**' }
+    into "$buildDir/web-assets"
+}
+preBuild.dependsOn 'copyWeb'
